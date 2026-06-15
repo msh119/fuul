@@ -191,7 +191,9 @@ export default function DashboardOverview({
   const privateWalletBalance = walletTransactions.reduce((acc, t) => acc + t.amount, 0);
 
   // 2. Calculate Total Assay Revenues
-  const totalAssayRevenues = purchases.reduce((acc, p) => acc + p.assayFee, 0);
+  const totalAssayRevenues = walletTransactions
+    .filter((t) => t.type === "assay_fee_income")
+    .reduce((acc, t) => acc + t.amount, 0);
 
   // 3. Outstanding Dealer Debts (Cumulative Cash Loans received minus cash repayments)
   const totalLoansReceived = dealerStatements
@@ -387,7 +389,9 @@ export default function DashboardOverview({
           </div>
           <div className="mt-4 pt-3 border-t border-slate-800 flex justify-between text-[10px] text-slate-500">
             <span>{isArabic ? "رافد أرباح المعمل المستقل" : "Independent assay profit stream"}</span>
-            <span className="text-emerald-400 font-bold font-mono">{purchases.length} {isArabic ? "ششنة" : "tests"}</span>
+            <span className="text-emerald-400 font-bold font-mono">
+              {walletTransactions.filter((tw) => tw.type === "assay_fee_income").length} {isArabic ? "عملية ششنة" : "tests"}
+            </span>
           </div>
         </div>
 

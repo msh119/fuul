@@ -77,6 +77,7 @@ import CustomModal from "./components/CustomModal";
 import WorkshopsManager from "./components/WorkshopsManager";
 import SafesCenter from "./components/SafesCenter";
 import GoogleSyncCenter from "./components/GoogleSyncCenter";
+import LocalDatabaseConsole from "./components/LocalDatabaseConsole";
 
 export default function App() {
   // Lang Toggle: Arabic as default, English as secondary
@@ -177,8 +178,51 @@ export default function App() {
     setPurchases(loadFromLocalStorage<PurchaseItem[]>("pyramids_purchases", []));
     setSaleItems(loadFromLocalStorage<SaleItem[]>("pyramids_sales", []));
     setExpenses(loadFromLocalStorage<PublicExpenseItem[]>("pyramids_expenses", []));
-    setWalletTransactions(loadFromLocalStorage<PrivateWalletTransaction[]>("pyramids_wallet", []));
-    setAssayLogs(loadFromLocalStorage<AssayLogItem[]>("pyramids_assay_logs", []));
+    
+    const savedAssays = loadFromLocalStorage<AssayLogItem[]>("pyramids_assay_logs", []);
+    setAssayLogs(savedAssays);
+
+    const rawWallet = loadFromLocalStorage<PrivateWalletTransaction[]>("pyramids_wallet", []);
+    const repairedWallet = rawWallet.map((tx) => {
+      let amount = tx.amount;
+      let descriptionAr = tx.descriptionAr;
+      let descriptionEn = tx.descriptionEn;
+
+      if (amount === undefined || amount === null || typeof amount !== 'number' || isNaN(amount)) {
+        if (tx.id.startsWith("w_assay_standalone_")) {
+          const logId = tx.id.replace("w_assay_standalone_", "");
+          const matchedLog = savedAssays.find((al) => al.id === logId);
+          if (matchedLog) {
+            amount = matchedLog.assayFee || matchedLog.assayFeeCollected || 0;
+          } else {
+            amount = 0;
+          }
+        } else {
+          amount = 0;
+        }
+      }
+
+      if (tx.id.startsWith("w_assay_standalone_") && (descriptionAr.includes("undefined") || descriptionEn.toLowerCase().includes("undefined"))) {
+        const logId = tx.id.replace("w_assay_standalone_", "");
+        const matchedLog = savedAssays.find((al) => al.id === logId);
+        if (matchedLog) {
+          const client = matchedLog.customerName || matchedLog.clientName || "عميل عابر";
+          descriptionAr = `رسم تحليل ششنة وفحص كاش منفرد للعميل: ${client}`;
+          descriptionEn = `Direct cash assay diagnostic fee from: ${client}`;
+        }
+      }
+
+      return {
+        ...tx,
+        amount,
+        descriptionAr,
+        descriptionEn
+      };
+    });
+    setWalletTransactions(repairedWallet);
+    if (JSON.stringify(rawWallet) !== JSON.stringify(repairedWallet)) {
+      saveToLocalStorage("pyramids_wallet", repairedWallet);
+    }
     
     // Workshops and separate ledger safes loaders
     setWorkshops(loadFromLocalStorage<Workshop[]>("pyramids_workshops", INITIAL_WORKSHOPS));
@@ -387,14 +431,17 @@ export default function App() {
     setAssayLogs(updatedAssayLogs);
     saveToLocalStorage("pyramids_assay_logs", updatedAssayLogs);
 
+    const client = newLog.customerName || newLog.clientName || (isArabic ? "عميل عابر" : "Walk-in Client");
+    const fee = newLog.assayFee !== undefined ? newLog.assayFee : (newLog.assayFeeCollected || 0);
+
     // Inflow directly to Private cash wallet Box
     const walletTx: PrivateWalletTransaction = {
       id: `w_assay_standalone_${newLog.id}`,
       date: newLog.date,
       type: "assay_fee_income",
-      descriptionAr: `رسم تحليل ششنة وفحص كاش منفرد للعميل ${newLog.customerName}`,
-      descriptionEn: `Direct cash assay diagnostic fee from ${newLog.customerName}`,
-      amount: newLog.assayFee
+      descriptionAr: `رسم تحليل ششنة وفحص كاش منفرد للعميل: ${client}`,
+      descriptionEn: `Direct cash assay diagnostic fee from: ${client}`,
+      amount: fee
     };
 
     const updatedWallet = [walletTx, ...walletTransactions];
@@ -1566,6 +1613,27 @@ export default function App() {
                 </div>
 
               </div>
+
+              {/* ADMIN SECURE DATABASE CONSOLE */}
+              <LocalDatabaseConsole
+                purchases={purchases}
+                sales={sales}
+                expenses={expenses}
+                walletTransactions={walletTransactions}
+                dealerStatements={dealerStatements}
+                dealers={dealers}
+                workshops={workshops}
+                workshopTransactions={workshopTransactions}
+                assayLogs={assayLogs}
+                isArabic={isArabic}
+                onDeletePurchase={handleDeletePurchase}
+                onDeleteSale={handleDeleteSale}
+                onDeleteExpense={handleDeleteExpense}
+                onDeleteWalletTransaction={handleDeleteWalletTransaction}
+                onDeleteWorkshopTransaction={handleDeleteWorkshopTransaction}
+                onDeleteAssayLog={handleDeleteAssayLog}
+                showAlert={showAlert}
+              />
 
             </div>
           )}
