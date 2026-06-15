@@ -76,6 +76,7 @@ import MasterLedger from "./components/MasterLedger";
 import CustomModal from "./components/CustomModal";
 import WorkshopsManager from "./components/WorkshopsManager";
 import SafesCenter from "./components/SafesCenter";
+import GoogleSyncCenter from "./components/GoogleSyncCenter";
 
 export default function App() {
   // Lang Toggle: Arabic as default, English as secondary
@@ -108,7 +109,7 @@ export default function App() {
   const [isSyncingSheets, setIsSyncingSheets] = useState<boolean>(false);
 
   // Navigation tab
-  const [activeTab, setActiveTab] = useState<"dashboard" | "safes" | "purchases" | "sales" | "dealers" | "expenses" | "ledger" | "settings" | "workshops">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "safes" | "purchases" | "sales" | "dealers" | "expenses" | "ledger" | "settings" | "workshops" | "syncCenter">("dashboard");
 
   // Custom Confirmation / Alert System
   const [modalOpen, setModalOpen] = useState(false);
@@ -216,6 +217,7 @@ export default function App() {
     tabExpenses: isArabic ? "المصروفات وفحص المعمل" : "Expenses & Tests",
     tabLedger: isArabic ? "سجل كافة العمليات" : "All Operations Log",
     tabWorkshops: isArabic ? "حسابات الورش والمسابك" : "Workshops Ledger",
+    tabSyncCenter: isArabic ? "☁️ مزامنة Google وشيتات الأقسام" : "☁️ Google Sync & Sheet Center",
     tabSettings: isArabic ? "الخزنة ونسخ الدفاتر" : "Private Vault",
     goldRefTitle: isArabic ? "أسعار غرامات الاسترشاد اليومية:" : "Reference price of gold:",
     walletBalanceLabel: isArabic ? "صندوق الخزنة الخاصة:" : "Private Box Balance:",
@@ -951,6 +953,19 @@ export default function App() {
 
               <button
                 type="button"
+                onClick={() => setActiveTab("syncCenter")}
+                className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap md:w-full ${
+                  activeTab === "syncCenter"
+                    ? "bg-amber-500 text-slate-950 shadow-md md:shadow-amber-500/10"
+                    : "text-slate-300 hover:text-white hover:bg-slate-900"
+                }`}
+              >
+                <Database className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span>{alt.tabSyncCenter}</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setActiveTab("settings")}
                 className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all md:w-full md:mt-2 whitespace-nowrap ltr:md:ml-0 ltr:ml-auto rtl:md:mr-0 rtl:mr-auto ${
                   activeTab === "settings"
@@ -1114,6 +1129,30 @@ export default function App() {
               onAddWorkshopTransaction={handleAddWorkshopTransaction}
               onDeleteWorkshopTransaction={handleDeleteWorkshopTransaction}
               showConfirm={showConfirm}
+              showAlert={showAlert}
+            />
+          )}
+
+          {activeTab === "syncCenter" && (
+            <GoogleSyncCenter
+              purchases={purchases}
+              sales={sales}
+              expenses={expenses}
+              walletTransactions={walletTransactions}
+              dealerStatements={dealerStatements}
+              dealers={dealers}
+              workshops={workshops}
+              workshopTransactions={workshopTransactions}
+              assayLogs={assayLogs}
+              isArabic={isArabic}
+              googleUser={googleUser}
+              googleToken={googleToken}
+              spreadsheetsId={spreadsheetsId}
+              spreadsheetsUrl={spreadsheetsUrl}
+              isSyncingSheets={isSyncingSheets}
+              onSyncToGoogleSheets={handleSyncToGoogleSheets}
+              onGoogleSignIn={handleGoogleSheetsLogin}
+              onGoogleSheetsLogout={handleGoogleSheetsLogout}
               showAlert={showAlert}
             />
           )}
