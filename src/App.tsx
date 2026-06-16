@@ -25,7 +25,9 @@ import {
   Plus,
   Minus,
   Wallet,
-  Building2
+  Building2,
+  Lock,
+  ShieldAlert
 } from "lucide-react";
 
 import { User } from "firebase/auth";
@@ -80,6 +82,7 @@ import GoogleSyncCenter from "./components/GoogleSyncCenter";
 import LocalDatabaseConsole from "./components/LocalDatabaseConsole";
 import TradingViewGoldChart from "./components/TradingViewGoldChart";
 import ArabCurrenciesTicker from "./components/ArabCurrenciesTicker";
+import AdminPasscodeModal from "./components/AdminPasscodeModal";
 
 export default function App() {
   // Lang Toggle: Arabic as default, English as secondary
@@ -111,8 +114,17 @@ export default function App() {
   const [spreadsheetsUrl, setSpreadsheetsUrl] = useState<string | null>(null);
   const [isSyncingSheets, setIsSyncingSheets] = useState<boolean>(false);
 
-  // Navigation tab
-  const [activeTab, setActiveTab] = useState<"dashboard" | "safes" | "purchases" | "sales" | "dealers" | "expenses" | "ledger" | "settings" | "workshops" | "syncCenter">("dashboard");
+  // Admin Mode and Passcode Lock state (Passcode: 202620)
+  const [isAdminMode, setIsAdminMode] = useState<boolean>(() => {
+    return localStorage.getItem("pyramids_admin_mode") === "true";
+  });
+  const [showPasscodeModal, setShowPasscodeModal] = useState<boolean>(false);
+
+  // Navigation tab (defaults to transaction screen 'purchases' if not admin mode)
+  const [activeTab, setActiveTab] = useState<"dashboard" | "safes" | "purchases" | "sales" | "dealers" | "expenses" | "ledger" | "settings" | "workshops" | "syncCenter">(() => {
+    const admin = localStorage.getItem("pyramids_admin_mode") === "true";
+    return admin ? "dashboard" : "purchases";
+  });
 
   // Custom Confirmation / Alert System
   const [modalOpen, setModalOpen] = useState(false);
@@ -861,6 +873,38 @@ export default function App() {
                 <span className="font-mono font-bold text-orange-400">{formatCurrency(goldPrices.gold18, isArabic)}</span>
               </div>
 
+              {/* ADMIN / EMPLOYEE MODE CONTROLLER */}
+              {isAdminMode ? (
+                <button
+                  type="button"
+                  id="admin-mode-lock-btn"
+                  onClick={() => {
+                    setIsAdminMode(false);
+                    localStorage.setItem("pyramids_admin_mode", "false");
+                    setActiveTab("purchases");
+                    showAlert(isArabic ? "تم قفل لوحة المدير بنجاح والعودة لحساب الموظف العادي لحماية البيانات." : "Admin dashboard secured! Safely reverted back to regular standard operations.");
+                  }}
+                  className="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-rose-500/10 text-emerald-400 hover:text-rose-400 rounded-lg transition-all border border-emerald-500/20 hover:border-rose-500/20 flex items-center gap-1.5 text-[11px] font-black cursor-pointer shadow-inner group"
+                  title={isArabic ? "اضغط لقفل صلاحيات وسجل المدير على الفور" : "Click to lock and secure admin credentials instantly"}
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-emerald-400 group-hover:text-rose-400 animate-pulse" />
+                  <span>{isArabic ? "المدير العام 👑" : "Admin Mode 👑"}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  id="admin-mode-unlock-btn"
+                  onClick={() => {
+                    setShowPasscodeModal(true);
+                  }}
+                  className="px-2.5 py-1.5 bg-slate-900 hover:bg-amber-500/10 text-slate-350 hover:text-amber-450 rounded-lg transition-all border border-slate-800 hover:border-amber-500/20 flex items-center gap-1.5 text-[11px] font-bold cursor-pointer"
+                  title={isArabic ? "تسجيل الدخول بصلاحية المدير العام للوصول للسجل والتقارير" : "Enter PIN code to authorize manager access"}
+                >
+                  <Lock className="w-3.5 h-3.5 text-amber-500" />
+                  <span>{isArabic? "حساب موظف 👤" : "Employee 👤"}</span>
+                </button>
+              )}
+
               {/* BILINGUAL LANGUAGE SWITCHER */}
               <button
                 onClick={() => setIsArabic(!isArabic)}
@@ -899,31 +943,36 @@ export default function App() {
 
             <div className="flex md:flex-col overflow-x-auto md:overflow-x-visible scrollbar-none gap-1 bg-slate-900 md:bg-transparent p-1 md:p-0 rounded-xl md:rounded-none">
               
-              <button
-                type="button"
-                onClick={() => setActiveTab("dashboard")}
-                className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap md:w-full ${
-                  activeTab === "dashboard"
-                    ? "bg-amber-500 text-slate-950 shadow-md md:shadow-amber-500/10"
-                    : "text-slate-300 hover:text-white hover:bg-slate-900"
-                }`}
-              >
-                <Layers className="w-4 h-4 flex-shrink-0" />
-                <span>{alt.tabDashboard}</span>
-              </button>
+              {/* ADMIN ONLY TABS */}
+              {isAdminMode && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("dashboard")}
+                  className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap md:w-full ${
+                    activeTab === "dashboard"
+                      ? "bg-amber-500 text-slate-950 shadow-md md:shadow-amber-500/10"
+                      : "text-slate-300 hover:text-white hover:bg-slate-900"
+                  }`}
+                >
+                  <Layers className="w-4 h-4 flex-shrink-0" />
+                  <span>{alt.tabDashboard}</span>
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => setActiveTab("safes")}
-                className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap md:w-full ${
-                  activeTab === "safes"
-                    ? "bg-amber-500 text-slate-950 shadow-md md:shadow-amber-500/10"
-                    : "text-slate-300 hover:text-white hover:bg-slate-900"
-                }`}
-              >
-                <Database className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                <span>{alt.tabSafes}</span>
-              </button>
+              {isAdminMode && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("safes")}
+                  className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap md:w-full ${
+                    activeTab === "safes"
+                      ? "bg-amber-500 text-slate-950 shadow-md md:shadow-amber-500/10"
+                      : "text-slate-300 hover:text-white hover:bg-slate-900"
+                  }`}
+                >
+                  <Database className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  <span>{alt.tabSafes}</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -951,18 +1000,20 @@ export default function App() {
                 <span>{alt.tabSales}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab("dealers")}
-                className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap md:w-full ${
-                  activeTab === "dealers"
-                    ? "bg-amber-500 text-slate-900 shadow-md md:shadow-amber-500/10"
-                    : "text-slate-300 hover:text-white hover:bg-slate-900"
-                }`}
-              >
-                <UserCheck className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                <span>{alt.tabDealers}</span>
-              </button>
+              {isAdminMode && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("dealers")}
+                  className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap md:w-full ${
+                    activeTab === "dealers"
+                      ? "bg-amber-500 text-slate-900 shadow-md md:shadow-amber-500/10"
+                      : "text-slate-300 hover:text-white hover:bg-slate-900"
+                  }`}
+                >
+                  <UserCheck className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                  <span>{alt.tabDealers}</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -977,18 +1028,20 @@ export default function App() {
                 <span>{alt.tabExpenses}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab("ledger")}
-                className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap md:w-full ${
-                  activeTab === "ledger"
-                    ? "bg-amber-500 text-slate-950 shadow-md md:shadow-amber-500/10"
-                    : "text-slate-300 hover:text-white hover:bg-slate-900"
-                }`}
-              >
-                <FileSpreadsheet className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                <span>{alt.tabLedger}</span>
-              </button>
+              {isAdminMode && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("ledger")}
+                  className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap md:w-full ${
+                    activeTab === "ledger"
+                      ? "bg-amber-500 text-slate-950 shadow-md md:shadow-amber-500/10"
+                      : "text-slate-300 hover:text-white hover:bg-slate-900"
+                  }`}
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                  <span>{alt.tabLedger}</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -1003,31 +1056,35 @@ export default function App() {
                 <span>{alt.tabWorkshops}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab("syncCenter")}
-                className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap md:w-full ${
-                  activeTab === "syncCenter"
-                    ? "bg-amber-500 text-slate-950 shadow-md md:shadow-amber-500/10"
-                    : "text-slate-300 hover:text-white hover:bg-slate-900"
-                }`}
-              >
-                <Database className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span>{alt.tabSyncCenter}</span>
-              </button>
+              {isAdminMode && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("syncCenter")}
+                  className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap md:w-full ${
+                    activeTab === "syncCenter"
+                      ? "bg-amber-500 text-slate-950 shadow-md md:shadow-amber-500/10"
+                      : "text-slate-300 hover:text-white hover:bg-slate-900"
+                  }`}
+                >
+                  <Database className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <span>{alt.tabSyncCenter}</span>
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => setActiveTab("settings")}
-                className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all md:w-full md:mt-2 whitespace-nowrap ltr:md:ml-0 ltr:ml-auto rtl:md:mr-0 rtl:mr-auto ${
-                  activeTab === "settings"
-                    ? "bg-amber-500 text-slate-950 shadow-md md:shadow-amber-500/10"
-                    : "text-slate-300 hover:text-white hover:bg-slate-900"
-                }`}
-              >
-                <Settings className="w-4 h-4 flex-shrink-0" />
-                <span>{alt.tabSettings}</span>
-              </button>
+              {isAdminMode && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("settings")}
+                  className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all md:w-full md:mt-2 whitespace-nowrap ltr:md:ml-0 ltr:ml-auto rtl:md:mr-0 rtl:mr-auto ${
+                    activeTab === "settings"
+                      ? "bg-amber-500 text-slate-950 shadow-md md:shadow-amber-500/10"
+                      : "text-slate-300 hover:text-white hover:bg-slate-900"
+                  }`}
+                >
+                  <Settings className="w-4 h-4 flex-shrink-0" />
+                  <span>{alt.tabSettings}</span>
+                </button>
+              )}
 
             </div>
           </div>
@@ -1056,7 +1113,31 @@ export default function App() {
 
         {/* ACTIVE RAILS VIEWPORT */}
         <div id="active-tab-viewport" className="flex-1 w-full min-w-0 transition-all duration-300">
-          {activeTab === "dashboard" && (
+          {["dashboard", "safes", "dealers", "ledger", "syncCenter", "settings"].includes(activeTab) && !isAdminMode ? (
+            <div className="bg-[#0c1322] border border-slate-850 rounded-2xl p-8 sm:p-12 text-center max-w-lg mx-auto my-8 sm:my-16 shadow-2xl flex flex-col items-center animate-fade-in" id="restricted-admin-access-card">
+              <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-full flex items-center justify-center mb-6 shadow-zinc-950">
+                <Lock className="w-6 h-6 animate-pulse text-amber-500" />
+              </div>
+              <h2 className="text-base font-black text-slate-100 mb-3 leading-none flex items-center gap-1.5 justify-center">
+                <span>{isArabic ? "صلاحيات الوصول مخصصة لمدير النظام 🔒" : "Access Restricted to Administrator 🔒"}</span>
+              </h2>
+              <p className="text-xs text-slate-400 mb-6 leading-relaxed max-w-sm mx-auto">
+                {isArabic 
+                  ? "سجلات المعاملات المالية، والتقارير العامة، وكشوفات تجار الجملة والمقاصة مخصصة فقط للمدير العام. يرجى مصادقة كود التحقق للمتابعة." 
+                  : "All live financial books, daily metrics audits, wholesale outstanding balances, and Google Sheets Synchronization centers are restricted to administrative authorization only."}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowPasscodeModal(true)}
+                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-450 text-slate-950 font-black text-xs rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer flex items-center gap-1.5 focus:outline-none"
+              >
+                <ShieldAlert className="w-4 h-4 text-slate-950 animate-bounce" />
+                <span>{isArabic ? "تأكيد الرمز لفتح لوحة المدير" : "Unlock Admin Dashboard"}</span>
+              </button>
+            </div>
+          ) : (
+            <>
+              {activeTab === "dashboard" && (
             <DashboardOverview
               purchases={purchases}
               sales={sales}
@@ -1642,6 +1723,8 @@ export default function App() {
 
             </div>
           )}
+            </>
+          )}
         </div>
       </main>
 
@@ -1669,6 +1752,20 @@ export default function App() {
         isArabic={isArabic}
         onConfirm={modalType === "confirm" ? modalConfirmCallback : undefined}
         onClose={() => setModalOpen(false)}
+      />
+
+      {/* ADMIN ENCRYPTED PASSCODE KEYPAD */}
+      <AdminPasscodeModal
+        isOpen={showPasscodeModal}
+        isArabic={isArabic}
+        onClose={() => setShowPasscodeModal(false)}
+        onSuccess={() => {
+          setIsAdminMode(true);
+          localStorage.setItem("pyramids_admin_mode", "true");
+          setShowPasscodeModal(false);
+          setActiveTab("dashboard");
+          showAlert(isArabic ? "تم تفعيل رتبة المدير العام بنجاح! تم فتح سجل العمليات والتقارير وتصفية الخزائن الموحدة." : "Admin Mode unlocked successfully! Granted master access to safes, statement logs, and reports.");
+        }}
       />
 
       {/* FIXED ARAB ECONOMIC CHANNELS STYLE TICKER BANNER FOR ARAB CURRENCY CONVERSIONS */}
