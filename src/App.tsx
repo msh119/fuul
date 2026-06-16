@@ -1187,6 +1187,8 @@ export default function App() {
               onDeletePurchase={handleDeletePurchase}
               showConfirm={showConfirm}
               showAlert={showAlert}
+              isAdminMode={isAdminMode}
+              onRequestAdminUnlock={() => setShowPasscodeModal(true)}
             />
           )}
 

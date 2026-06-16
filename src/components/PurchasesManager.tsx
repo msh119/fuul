@@ -16,7 +16,9 @@ import {
   Info,
   DollarSign,
   Award,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Lock,
+  ShieldAlert
 } from "lucide-react";
 import { PurchaseItem } from "../types";
 import { formatCurrency, formatWeight, getMillesimalKarat, calculateEquivalentWeight, downloadCSV } from "../utils";
@@ -28,6 +30,8 @@ interface PurchasesManagerProps {
   onDeletePurchase: (id: string) => void;
   showConfirm: (message: string, onConfirm: () => void) => void;
   showAlert: (message: string) => void;
+  isAdminMode: boolean;
+  onRequestAdminUnlock?: () => void;
 }
 
 export default function PurchasesManager({
@@ -37,6 +41,8 @@ export default function PurchasesManager({
   onDeletePurchase,
   showConfirm,
   showAlert,
+  isAdminMode,
+  onRequestAdminUnlock,
 }: PurchasesManagerProps) {
   // Model state variables
   const [customerName, setCustomerName] = useState("");
@@ -432,102 +438,107 @@ export default function PurchasesManager({
 
       </div>
 
-      {/* SEARCH FILTER BOX */}
-      <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-md space-y-3">
-        <div className="relative">
-          <Search className="absolute right-3 top-2.5 w-4 h-4 text-slate-500" />
-          <input
-            type="text"
-            placeholder={t.searchPlaceholder}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded py-2 pr-9 pl-4 text-white text-xs outline-none focus:border-amber-500"
-          />
-        </div>
-      </div>
-
-      {/* TABLE DATA LIST */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
-        <div className="p-4 bg-slate-950/40 border-b border-slate-800 flex justify-between items-center">
-          <h3 className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-            <Activity className="w-4 h-4 text-amber-500" />
-            <span>{t.recentBuys}</span>
-          </h3>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportExcel}
-              className="px-2.5 py-1 bg-slate-900 hover:bg-slate-850 text-emerald-400 hover:text-emerald-300 border border-slate-800 hover:border-slate-700 rounded flex items-center gap-1.5 text-[10px] font-bold cursor-pointer transition-all"
-              title={isArabic ? "تحميل عينة إكسل منفصل لهذا القسم" : "Download separate Excel sheet for this division"}
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
-              <span>{isArabic ? "تحميل إكسل" : "Download Excel"}</span>
-            </button>
-            <span className="text-[10px] bg-slate-800 text-amber-400 px-2 py-0.5 rounded font-bold font-mono">
-              {filteredPurchases.length} {isArabic ? "فاتورة" : "items"}
-            </span>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          {filteredPurchases.length === 0 ? (
-            <div className="p-10 text-center text-slate-500 text-xs">
-              {isArabic ? "لا توجد أي فواتير مطابقة للبحث حالياً." : "No registered purchase records matched search criteria."}
+      {/* SEARCH FILTER BOX & TABLE DATA LIST (RESTRICTED TO ADMIN) */}
+      {isAdminMode ? (
+        <>
+          {/* SEARCH FILTER BOX */}
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-md space-y-3">
+            <div className="relative">
+              <Search className="absolute right-3 top-2.5 w-4 h-4 text-slate-500" />
+              <input
+                type="text"
+                placeholder={t.searchPlaceholder}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded py-2 pr-9 pl-4 text-white text-xs outline-none focus:border-amber-500"
+              />
             </div>
-          ) : (
-            <table className="w-full text-right text-xs">
-              <thead className="bg-slate-950 text-slate-400 font-bold border-b border-slate-800">
-                <tr>
-                  <th className="p-3">{t.date}</th>
-                  <th className="p-3 text-right">{isArabic ? "العميل المورّد" : "Customer / Broker"}</th>
-                  <th className="p-3 text-center">{t.actualWeight}</th>
-                  <th className="p-3 text-center">{t.karatValCol}</th>
-                  <th className="p-3 text-center">{t.equivalentWeight21Col}</th>
-                  <th className="p-3 text-center">{isArabic ? "سعر عيار 21" : "Price of 21"}</th>
-                  <th className="p-3 text-center">{t.goldValueCol}</th>
-                  <th className="p-3 text-center">{t.assayFeeCol}</th>
-                  <th className="p-3 text-center">{t.brokerFeeCol}</th>
-                  <th className="p-3 text-center">{isArabic ? "الصافي المدفوع" : "Net Paid"}</th>
-                  <th className="p-3 text-center"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800 text-slate-300">
-                {filteredPurchases.map((p) => {
-                  return (
-                    <tr key={p.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="p-3 font-mono text-[10px] whitespace-nowrap text-slate-400">{p.date}</td>
-                      <td className="p-3 font-bold text-slate-100 whitespace-nowrap">{p.customerName}</td>
-                      <td className="p-3 text-center font-mono font-bold">{p.actualWeight.toFixed(2)}g</td>
-                      <td className="p-3 text-center font-mono text-slate-400">{p.detectedKarat}</td>
-                      <td className="p-3 text-center font-mono text-amber-400 font-bold">{p.equivalentWeight21.toFixed(3)}g</td>
-                      <td className="p-3 text-center font-mono text-slate-400">{formatCurrency(p.price21, isArabic)}</td>
-                      <td className="p-3 text-center font-mono text-amber-500 font-black">{formatCurrency(p.goldValue, isArabic)}</td>
-                      <td className="p-3 text-center font-mono text-emerald-400 font-bold">+{formatCurrency(p.assayFee, isArabic)}</td>
-                      <td className="p-3 text-center font-mono text-rose-500">-{formatCurrency(p.brokerFee, isArabic)}</td>
-                      <td className="p-3 text-center font-mono text-emerald-400 font-black">{formatCurrency(p.goldValue - p.assayFee, isArabic)}</td>
-                      <td className="p-3 text-center">
-                        <button
-                          onClick={() => {
-                            showConfirm(
-                              isArabic ? "هل تريد حذف فاتورة الشراء هذه تماماً؟ سيلغي تأثيرها المحاسبي بالصندوق." : "Delete this purchase ledger entry permanently?",
-                              () => {
-                                onDeletePurchase(p.id);
-                              }
-                            );
-                          }}
-                          className="text-slate-500 hover:text-rose-500 p-0.5 transition-colors"
-                          title={t.delete}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
+          </div>
+
+          {/* TABLE DATA LIST */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
+            <div className="p-4 bg-slate-950/40 border-b border-slate-800 flex justify-between items-center">
+              <h3 className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                <Activity className="w-4 h-4 text-amber-500" />
+                <span>{t.recentBuys}</span>
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExportExcel}
+                  className="px-2.5 py-1 bg-slate-900 hover:bg-slate-850 text-emerald-400 hover:text-emerald-300 border border-slate-800 hover:border-slate-700 rounded flex items-center gap-1.5 text-[10px] font-bold cursor-pointer transition-all"
+                  title={isArabic ? "تحميل عينة إكسل منفصل لهذا القسم" : "Download separate Excel sheet for this division"}
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>{isArabic ? "تحميل إكسل" : "Download Excel"}</span>
+                </button>
+                <span className="text-[10px] bg-slate-800 text-amber-400 px-2 py-0.5 rounded font-bold font-mono">
+                  {filteredPurchases.length} {isArabic ? "فاتورة" : "items"}
+                </span>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              {filteredPurchases.length === 0 ? (
+                <div className="p-10 text-center text-slate-500 text-xs">
+                  {isArabic ? "لا توجد أي فواتير مطابقة للبحث حالياً." : "No registered purchase records matched search criteria."}
+                </div>
+              ) : (
+                <table className="w-full text-right text-xs">
+                  <thead className="bg-slate-950 text-slate-400 font-bold border-b border-slate-800">
+                    <tr>
+                      <th className="p-3">{t.date}</th>
+                      <th className="p-3 text-right">{isArabic ? "العميل المورّد" : "Customer / Broker"}</th>
+                      <th className="p-3 text-center">{t.actualWeight}</th>
+                      <th className="p-3 text-center">{t.karatValCol}</th>
+                      <th className="p-3 text-center">{t.equivalentWeight21Col}</th>
+                      <th className="p-3 text-center">{isArabic ? "سعر عيار 21" : "Price of 21"}</th>
+                      <th className="p-3 text-center">{t.goldValueCol}</th>
+                      <th className="p-3 text-center">{t.assayFeeCol}</th>
+                      <th className="p-3 text-center">{t.brokerFeeCol}</th>
+                      <th className="p-3 text-center">{isArabic ? "الصافي المدفوع" : "Net Paid"}</th>
+                      <th className="p-3 text-center"></th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800 text-slate-300">
+                    {filteredPurchases.map((p) => {
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="p-3 font-mono text-[10px] whitespace-nowrap text-slate-400">{p.date}</td>
+                          <td className="p-3 font-bold text-slate-100 whitespace-nowrap">{p.customerName}</td>
+                          <td className="p-3 text-center font-mono font-bold">{p.actualWeight.toFixed(2)}g</td>
+                          <td className="p-3 text-center font-mono text-slate-400">{p.detectedKarat}</td>
+                          <td className="p-3 text-center font-mono text-amber-400 font-bold">{p.equivalentWeight21.toFixed(3)}g</td>
+                          <td className="p-3 text-center font-mono text-slate-400">{formatCurrency(p.price21, isArabic)}</td>
+                          <td className="p-3 text-center font-mono text-amber-500 font-black">{formatCurrency(p.goldValue, isArabic)}</td>
+                          <td className="p-3 text-center font-mono text-emerald-400 font-bold">+{formatCurrency(p.assayFee, isArabic)}</td>
+                          <td className="p-3 text-center font-mono text-rose-500">-{formatCurrency(p.brokerFee, isArabic)}</td>
+                          <td className="p-3 text-center font-mono text-emerald-400 font-black">{formatCurrency(p.goldValue - p.assayFee, isArabic)}</td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => {
+                                showConfirm(
+                                  isArabic ? "هل تريد حذف فاتورة الشراء هذه تماماً؟ سيلغي تأثيرها المحاسبي بالصندوق." : "Delete this purchase ledger entry permanently?",
+                                  () => {
+                                    onDeletePurchase(p.id);
+                                  }
+                                );
+                              }}
+                              className="text-slate-500 hover:text-rose-500 p-0.5 transition-colors"
+                              title={t.delete}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </>
+      ) : null}
 
     </div>
   );
