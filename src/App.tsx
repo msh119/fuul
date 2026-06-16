@@ -78,6 +78,8 @@ import WorkshopsManager from "./components/WorkshopsManager";
 import SafesCenter from "./components/SafesCenter";
 import GoogleSyncCenter from "./components/GoogleSyncCenter";
 import LocalDatabaseConsole from "./components/LocalDatabaseConsole";
+import TradingViewGoldChart from "./components/TradingViewGoldChart";
+import ArabCurrenciesTicker from "./components/ArabCurrenciesTicker";
 
 export default function App() {
   // Lang Toggle: Arabic as default, English as secondary
@@ -812,64 +814,67 @@ export default function App() {
   return (
     <div
       id="pyramids-gold-system"
-      className="min-h-screen bg-[#070b13] text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950"
+      className="min-h-screen bg-[#070b13] text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950 pb-[50px]"
       dir={isArabic ? "rtl" : "ltr"}
     >
-      {/* PROFESSIONAL HIGH-CONTRAST GOLD HEADER */}
-      <header className="bg-slate-950 border-b border-amber-500/30 sticky top-0 z-50 px-4 py-3.5 sm:px-6 shadow-md shadow-slate-950/20">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          
-          {/* LOGO & LABELS */}
-          <div className="flex items-center gap-3">
-            <span className="p-2.5 bg-gradient-to-tr from-yellow-500 to-amber-600 rounded-lg text-slate-950 shadow-md shadow-amber-500/10">
-              <Coins className="w-5.5 h-5.5 animate-pulse" />
-            </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm sm:text-base font-black text-white hover:text-amber-400 transition-colors leading-none tracking-tight">
-                  {alt.title}
-                </h1>
-                <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[8.5px] px-1.5 py-0.5 rounded-full font-black font-mono">
-                  BALANCED
-                </span>
+      {/* STICKY HEADER CONTAINER */}
+      <div className="sticky top-0 z-50 flex flex-col w-full">
+        {/* PROFESSIONAL HIGH-CONTRAST GOLD HEADER */}
+        <header className="bg-slate-950 border-b border-amber-500/30 px-4 py-3.5 sm:px-6 shadow-md shadow-slate-950/20">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            {/* LOGO & LABELS */}
+            <div className="flex items-center gap-3">
+              <span className="p-2.5 bg-gradient-to-tr from-yellow-500 to-amber-600 rounded-lg text-slate-950 shadow-md shadow-amber-500/10">
+                <Coins className="w-5.5 h-5.5 animate-pulse" />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-sm sm:text-base font-black text-white hover:text-amber-400 transition-colors leading-none tracking-tight">
+                    {alt.title}
+                  </h1>
+                  <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[8.5px] px-1.5 py-0.5 rounded-full font-black font-mono">
+                    BALANCED
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">{alt.subtitle}</p>
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">{alt.subtitle}</p>
             </div>
+
+            {/* ACTIVE DAY SUGGESTIONS RATES */}
+            <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
+              <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5 whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
+                <span className="text-slate-400 font-medium">{isArabic ? "الصافي عيار ٢٤:" : "24k Pure:"}</span>
+                <span className="font-mono font-bold text-amber-400">{formatCurrency(goldPrices.gold24, isArabic)}</span>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5 whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <span className="text-slate-400 font-medium">{isArabic ? "المرجع عيار ٢١:" : "Karat 21 Ref:"}</span>
+                <span className="font-mono font-bold text-amber-450">{formatCurrency(goldPrices.gold21, isArabic)}</span>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5 whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                <span className="text-slate-400 font-medium">{isArabic ? "عيار ١٨ صاغة:" : "18k Stamp:"}</span>
+                <span className="font-mono font-bold text-orange-400">{formatCurrency(goldPrices.gold18, isArabic)}</span>
+              </div>
+
+              {/* BILINGUAL LANGUAGE SWITCHER */}
+              <button
+                onClick={() => setIsArabic(!isArabic)}
+                className="p-1.5 bg-slate-900 hover:bg-slate-800 rounded-lg text-slate-350 hover:text-white transition-colors border border-slate-800 flex items-center gap-1 text-[11px]"
+                title={isArabic ? "Switch to English" : "تغيير للعربية"}
+              >
+                <Globe className="w-3.5 h-3.5 text-amber-500" />
+                <span>{isArabic ? "En" : "عرب"}</span>
+              </button>
+            </div>
+
           </div>
-
-          {/* ACTIVE DAY SUGGESTIONS RATES */}
-          <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
-            <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5 whitespace-nowrap">
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
-              <span className="text-slate-400 font-medium">{isArabic ? "الصافي عيار ٢٤:" : "24k Pure:"}</span>
-              <span className="font-mono font-bold text-amber-400">{formatCurrency(goldPrices.gold24, isArabic)}</span>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5 whitespace-nowrap">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              <span className="text-slate-400 font-medium">{isArabic ? "المرجع عيار ٢١:" : "Karat 21 Ref:"}</span>
-              <span className="font-mono font-bold text-amber-450">{formatCurrency(goldPrices.gold21, isArabic)}</span>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5 whitespace-nowrap">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-              <span className="text-slate-400 font-medium">{isArabic ? "عيار ١٨ صاغة:" : "18k Stamp:"}</span>
-              <span className="font-mono font-bold text-orange-400">{formatCurrency(goldPrices.gold18, isArabic)}</span>
-            </div>
-
-            {/* BILINGUAL LANGUAGE SWITCHER */}
-            <button
-              onClick={() => setIsArabic(!isArabic)}
-              className="p-1.5 bg-slate-900 hover:bg-slate-800 rounded-lg text-slate-350 hover:text-white transition-colors border border-slate-800 flex items-center gap-1 text-[11px]"
-              title={isArabic ? "Switch to English" : "تغيير للعربية"}
-            >
-              <Globe className="w-3.5 h-3.5 text-amber-500" />
-              <span>{isArabic ? "En" : "عرب"}</span>
-            </button>
-          </div>
-
-        </div>
-      </header>
+        </header>
+      </div>
 
       {/* SYSTEM BROADCAST NOTIFICATION */}
       <div className="bg-amber-450/5 border-b border-amber-500/10 px-4 py-2 sm:px-6">
@@ -1640,6 +1645,11 @@ export default function App() {
         </div>
       </main>
 
+      {/* TRADINGVIEW GLOBAL LIVE PRECIOUS METALS CHART */}
+      <div className="px-4 sm:px-6 md:px-8 max-w-7xl mx-auto w-full mb-8">
+        <TradingViewGoldChart isArabic={isArabic} />
+      </div>
+
       {/* FOOTER GENERAL LEGALS */}
       <footer className="bg-slate-950 border-t border-slate-900 py-4 mt-12 text-center text-[11px] text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 font-medium text-slate-400">
@@ -1660,6 +1670,9 @@ export default function App() {
         onConfirm={modalType === "confirm" ? modalConfirmCallback : undefined}
         onClose={() => setModalOpen(false)}
       />
+
+      {/* FIXED ARAB ECONOMIC CHANNELS STYLE TICKER BANNER FOR ARAB CURRENCY CONVERSIONS */}
+      <ArabCurrenciesTicker isArabic={isArabic} />
 
     </div>
   );
