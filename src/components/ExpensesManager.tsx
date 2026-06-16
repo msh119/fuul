@@ -31,6 +31,8 @@ interface ExpensesManagerProps {
   onDeleteAssayLog: (id: string) => void;
   showConfirm: (message: string, onConfirm: () => void) => void;
   showAlert: (message: string) => void;
+  isAdminMode: boolean;
+  onRequestAdminUnlock?: () => void;
 }
 
 export default function ExpensesManager({
@@ -43,6 +45,8 @@ export default function ExpensesManager({
   onDeleteAssayLog,
   showConfirm,
   showAlert,
+  isAdminMode,
+  onRequestAdminUnlock,
 }: ExpensesManagerProps) {
   // Overhead Expenses local form
   const [expenseTitle, setExpenseTitle] = useState("");
@@ -399,8 +403,8 @@ export default function ExpensesManager({
       {/* SECTION 2: THE LEDGERS LISTS AND LOGS */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-2">
         
-        {/* EXPENSES DETAIL TAB PANEL: 6 cols */}
-        <div className="lg:col-span-6 space-y-4">
+        {/* EXPENSES DETAIL TAB PANEL */}
+        <div className={`${isAdminMode ? "lg:col-span-6" : "lg:col-span-12"} space-y-4`}>
           <div className="bg-slate-950 p-4 border border-slate-800 rounded-xl flex justify-between items-center whitespace-nowrap">
             <div>
               <span className="text-[10px] text-slate-500 block uppercase font-bold">{t.totalOverhead}</span>
@@ -476,84 +480,86 @@ export default function ExpensesManager({
           </div>
         </div>
 
-        {/* ASSAY TESTING REVENUES LOGS PANEL: 6 cols */}
-        <div className="lg:col-span-6 space-y-4">
-          <div className="bg-slate-950 p-4 border border-slate-800 rounded-xl flex justify-between items-center whitespace-nowrap">
-            <div>
-              <span className="text-[10px] text-slate-500 block uppercase font-bold">{t.totalAssayRev}</span>
-              <span className="font-mono text-xs font-black text-emerald-400">{formatCurrency(sumAssays, isArabic)}</span>
+        {/* ASSAY TESTING REVENUES LOGS PANEL */}
+        {isAdminMode && (
+          <div className="lg:col-span-6 space-y-4">
+            <div className="bg-slate-950 p-4 border border-slate-800 rounded-xl flex justify-between items-center whitespace-nowrap">
+              <div>
+                <span className="text-[10px] text-slate-500 block uppercase font-bold">{t.totalAssayRev}</span>
+                <span className="font-mono text-xs font-black text-emerald-400">{formatCurrency(sumAssays, isArabic)}</span>
+              </div>
+              <div className="relative w-48 text-right">
+                <input
+                  type="text"
+                  placeholder={t.searchPlaceholder}
+                  value={assaySearch}
+                  onChange={(e) => setAssaySearch(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded p-1 pr-6 pl-2 text-[11px] text-white outline-none"
+                />
+                <Search className="absolute right-1.5 top-2 w-3.5 h-3.5 text-slate-500" />
+              </div>
             </div>
-            <div className="relative w-48 text-right">
-              <input
-                type="text"
-                placeholder={t.searchPlaceholder}
-                value={assaySearch}
-                onChange={(e) => setAssaySearch(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded p-1 pr-6 pl-2 text-[11px] text-white outline-none"
-              />
-              <Search className="absolute right-1.5 top-2 w-3.5 h-3.5 text-slate-500" />
-            </div>
-          </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-            <div className="p-3 bg-slate-950/60 border-b border-slate-800 font-bold text-xs text-emerald-400 flex justify-between items-center">
-              <span>{t.assayLedgerTab}</span>
-              <button
-                type="button"
-                onClick={handleExportAssayLogsExcel}
-                className="px-2 py-0.5 bg-slate-900 hover:bg-slate-800 text-emerald-400 hover:text-emerald-300 border border-slate-800 rounded flex items-center gap-1 text-[9.5px] font-bold cursor-pointer transition-all"
-                title={isArabic ? "تحميل عينة إكسل منفصل لهذا القسم" : "Download separate Excel sheet for this division"}
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
-                <span>{isArabic ? "تحميل إكسل" : "Download Excel"}</span>
-              </button>
-            </div>
-            <div className="overflow-x-auto max-h-[350px] overflow-y-auto">
-              {filteredAssayLogs.length === 0 ? (
-                <div className="p-8 text-center text-slate-555 text-xs">{isArabic ? "لا توجد حركات ششنه مسجلة." : "No assays on ledger logs."}</div>
-              ) : (
-                <table className="w-full text-right text-xs">
-                  <thead className="bg-slate-950 text-slate-400 font-bold border-b border-slate-805">
-                    <tr>
-                      <th className="p-2.5">{t.date}</th>
-                      <th className="p-2.5">{t.client}</th>
-                      <th className="p-2.5 text-center">{t.weight}</th>
-                      <th className="p-2.5 text-center">{t.karat}</th>
-                      <th className="p-2.5 text-center">{t.total}</th>
-                      <th className="p-2.5"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800 text-slate-300">
-                    {filteredAssayLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-slate-800/30 text-[11px]">
-                        <td className="p-2.5 font-mono text-slate-500">{log.date}</td>
-                        <td className="p-2.5 font-bold text-slate-100 whitespace-nowrap">{log.clientName || log.customerName || "-"}</td>
-                        <td className="p-2.5 text-center font-mono">{log.actualWeight.toFixed(2)}g</td>
-                        <td className="p-2.5 text-center font-mono text-slate-400">{log.detectedKarat}</td>
-                        <td className="p-2.5 text-center font-mono font-bold text-emerald-450">+{formatCurrency(log.assayFeeCollected || log.assayFee || 0, isArabic)}</td>
-                        <td className="p-2.5 text-center">
-                          <button
-                            onClick={() => {
-                              showConfirm(
-                                isArabic ? "حذف قيد الششنة الكاش المفرد هذا؟" : "Delete custom assay log?",
-                                () => {
-                                  onDeleteAssayLog(log.id);
-                                }
-                              );
-                            }}
-                            className="text-slate-500 hover:text-rose-500"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
+            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+              <div className="p-3 bg-slate-950/60 border-b border-slate-800 font-bold text-xs text-emerald-400 flex justify-between items-center">
+                <span>{t.assayLedgerTab}</span>
+                <button
+                  type="button"
+                  onClick={handleExportAssayLogsExcel}
+                  className="px-2 py-0.5 bg-slate-900 hover:bg-slate-850 text-emerald-400 hover:text-emerald-300 border border-slate-800 rounded flex items-center gap-1 text-[9.5px] font-bold cursor-pointer transition-all"
+                  title={isArabic ? "تحميل عينة إكسل منفصل لهذا القسم" : "Download separate Excel sheet for this division"}
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>{isArabic ? "تحميل إكسل" : "Download Excel"}</span>
+                </button>
+              </div>
+              <div className="overflow-x-auto max-h-[350px] overflow-y-auto">
+                {filteredAssayLogs.length === 0 ? (
+                  <div className="p-8 text-center text-slate-555 text-xs">{isArabic ? "لا توجد حركات ششنه مسجلة." : "No assays on ledger logs."}</div>
+                ) : (
+                  <table className="w-full text-right text-xs">
+                    <thead className="bg-slate-950 text-slate-400 font-bold border-b border-slate-805">
+                      <tr>
+                        <th className="p-2.5">{t.date}</th>
+                        <th className="p-2.5">{t.client}</th>
+                        <th className="p-2.5 text-center">{t.weight}</th>
+                        <th className="p-2.5 text-center">{t.karat}</th>
+                        <th className="p-2.5 text-center">{t.total}</th>
+                        <th className="p-2.5"></th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 text-slate-300">
+                      {filteredAssayLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-slate-800/30 text-[11px]">
+                          <td className="p-2.5 font-mono text-slate-500">{log.date}</td>
+                          <td className="p-2.5 font-bold text-slate-100 whitespace-nowrap">{log.clientName || log.customerName || "-"}</td>
+                          <td className="p-2.5 text-center font-mono">{log.actualWeight.toFixed(2)}g</td>
+                          <td className="p-2.5 text-center font-mono text-slate-400">{log.detectedKarat}</td>
+                          <td className="p-2.5 text-center font-mono font-bold text-emerald-450">+{formatCurrency(log.assayFeeCollected || log.assayFee || 0, isArabic)}</td>
+                          <td className="p-2.5 text-center">
+                            <button
+                              onClick={() => {
+                                showConfirm(
+                                  isArabic ? "حذف قيد الششنة الكاش المفرد هذا؟" : "Delete custom assay log?",
+                                  () => {
+                                    onDeleteAssayLog(log.id);
+                                  }
+                                );
+                              }}
+                              className="text-slate-500 hover:text-rose-500"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
       </div>
 

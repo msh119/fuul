@@ -1229,6 +1229,8 @@ export default function App() {
               onDeleteAssayLog={handleDeleteAssayLog}
               showConfirm={showConfirm}
               showAlert={showAlert}
+              isAdminMode={isAdminMode}
+              onRequestAdminUnlock={() => setShowPasscodeModal(true)}
             />
           )}
 
