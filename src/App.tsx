@@ -28,7 +28,8 @@ import {
   Building2,
   Lock,
   ShieldAlert,
-  Users
+  Users,
+  BookOpen
 } from "lucide-react";
 
 import { User } from "firebase/auth";
@@ -87,6 +88,7 @@ import TradingViewGoldChart from "./components/TradingViewGoldChart";
 import ArabCurrenciesTicker from "./components/ArabCurrenciesTicker";
 import AdminPasscodeModal from "./components/AdminPasscodeModal";
 import PartnersManager from "./components/PartnersManager";
+import SystemManual from "./components/SystemManual";
 
 export default function App() {
   // Lang Toggle: Arabic as default, English as secondary
@@ -211,7 +213,7 @@ export default function App() {
   const [showPasscodeModal, setShowPasscodeModal] = useState<boolean>(false);
 
   // Navigation tab (defaults to transaction screen 'purchases' if not admin mode)
-  const [activeTab, setActiveTab] = useState<"dashboard" | "safes" | "purchases" | "sales" | "dealers" | "expenses" | "ledger" | "settings" | "workshops" | "syncCenter" | "partners">(() => {
+  const [activeTab, setActiveTab] = useState<"dashboard" | "safes" | "purchases" | "sales" | "dealers" | "expenses" | "ledger" | "settings" | "workshops" | "syncCenter" | "partners" | "manual">(() => {
     const admin = localStorage.getItem("pyramids_admin_mode") === "true";
     return admin ? "dashboard" : "purchases";
   });
@@ -367,6 +369,7 @@ export default function App() {
     tabWorkshops: isArabic ? "حسابات الورش والمسابك" : "Workshops Ledger",
     tabSyncCenter: isArabic ? "☁️ مزامنة Google وشيتات الأقسام" : "☁️ Google Sync & Sheet Center",
     tabPartners: isArabic ? "📊 الشركاء وتوزيع الأرباح" : "📊 Partners & Dividends",
+    tabManual: isArabic ? "📘 دليل النظام الذهبى" : "📘 Gold System Manual",
     tabSettings: isArabic ? "الخزنة ونسخ الدفاتر" : "Private Vault",
     goldRefTitle: isArabic ? "أسعار غرامات الاسترشاد اليومية:" : "Reference price of gold:",
     walletBalanceLabel: isArabic ? "صندوق الخزنة الخاصة:" : "Private Box Balance:",
@@ -950,6 +953,20 @@ export default function App() {
   const absoluteWalletCash = walletTransactions.reduce((acc, t) => acc + t.amount, 0);
   const privateWalletBalance = totalEnterpriseCapital - totalPartnerWithdrawals + absoluteWalletCash;
 
+  // Reactively computed Working Net Business Profit for SystemManual & general metrics
+  const totalSalesGoldValue = sales.reduce((acc, s) => acc + s.goldValue, 0);
+  const totalPurchasesGoldValue = purchases.reduce((acc, p) => acc + p.goldValue, 0);
+  const totalAssayRevenues = walletTransactions
+    .filter((t) => t.type === "assay_fee_income")
+    .reduce((acc, t) => acc + t.amount, 0);
+  const totalBrokerFees = purchases.reduce((acc, p) => acc + p.brokerFee, 0);
+  const totalOverheadExpenses = expenses
+    .filter((e) => e.category === "overhead")
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const netBusinessProfit =
+    totalSalesGoldValue - totalPurchasesGoldValue + totalAssayRevenues - totalBrokerFees - totalOverheadExpenses;
+
   return (
     <div
       id="pyramids-gold-system"
@@ -1216,6 +1233,21 @@ export default function App() {
               {isAdminMode && (
                 <button
                   type="button"
+                  onClick={() => setActiveTab("manual")}
+                  className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap md:w-full ${
+                    activeTab === "manual"
+                      ? "bg-amber-500 text-slate-950 shadow-md md:shadow-amber-500/10"
+                      : "text-slate-300 hover:text-white hover:bg-slate-900"
+                  }`}
+                >
+                  <BookOpen className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  <span>{alt.tabManual}</span>
+                </button>
+              )}
+
+              {isAdminMode && (
+                <button
+                  type="button"
                   onClick={() => setActiveTab("settings")}
                   className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all md:w-full md:mt-2 whitespace-nowrap ltr:md:ml-0 ltr:ml-auto rtl:md:mr-0 rtl:mr-auto ${
                     activeTab === "settings"
@@ -1444,6 +1476,7 @@ export default function App() {
               sales={sales}
               expenses={expenses}
               walletTransactions={walletTransactions}
+              setWalletTransactions={setWalletTransactions}
               isArabic={isArabic}
               showConfirm={showConfirm}
               showAlert={showAlert}
@@ -1455,6 +1488,14 @@ export default function App() {
               setCompanyShare={setCompanyShare}
               partnersPoolShare={partnersPoolShare}
               setPartnersPoolShare={setPartnersPoolShare}
+              privateWalletBalance={privateWalletBalance}
+            />
+          )}
+
+          {activeTab === "manual" && (
+            <SystemManual
+              isArabic={isArabic}
+              netBusinessProfit={netBusinessProfit}
               privateWalletBalance={privateWalletBalance}
             />
           )}
