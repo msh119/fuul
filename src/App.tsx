@@ -27,7 +27,8 @@ import {
   Wallet,
   Building2,
   Lock,
-  ShieldAlert
+  ShieldAlert,
+  Users
 } from "lucide-react";
 
 import { User } from "firebase/auth";
@@ -50,7 +51,9 @@ import {
   AssayLogItem,
   DailyGoldPrices,
   Workshop,
-  WorkshopTransaction
+  WorkshopTransaction,
+  Partner,
+  PartnerTransaction
 } from "./types";
 
 import {
@@ -83,6 +86,7 @@ import LocalDatabaseConsole from "./components/LocalDatabaseConsole";
 import TradingViewGoldChart from "./components/TradingViewGoldChart";
 import ArabCurrenciesTicker from "./components/ArabCurrenciesTicker";
 import AdminPasscodeModal from "./components/AdminPasscodeModal";
+import PartnersManager from "./components/PartnersManager";
 
 export default function App() {
   // Lang Toggle: Arabic as default, English as secondary
@@ -98,6 +102,92 @@ export default function App() {
   const [assayLogs, setAssayLogs] = useState<AssayLogItem[]>([]);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
   const [workshopTransactions, setWorkshopTransactions] = useState<WorkshopTransaction[]>([]);
+
+  // Partners & Corporate Capital Lifted States
+  const [partners, setPartners] = useState<Partner[]>(() => {
+    const saved = localStorage.getItem("pyramids_partners");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // Fallback
+      }
+    }
+    return [
+      {
+        id: "partner_1",
+        nameAr: "الحاج أحمد العسيلي (شريك ذهب ومورّد)",
+        nameEn: "Al-Haj Ahmed El-Assily (Wholesale Partner)",
+        phone: "+201011223344",
+        sharePercent: 15,
+        capitalContributed: 1500000,
+        contractNotesAr: "اتفاق توريد وتسهيلات بيع جملة بالذهب الكسر الششنة وحساب بالوزن العيني",
+        contractNotesEn: "Wholesale facility and scrap gold weight supply custom agreement",
+        transactions: [
+          {
+            id: "ptx_1_1",
+            date: "2026-05-01",
+            type: "capital_inject",
+            amount: 1500000,
+            descriptionAr: "ضخ رأس مال تأسيسي بدفتر الشركاء الموحد للذهب",
+            descriptionEn: "Initial capital injection registered in partners safe book"
+          }
+        ]
+      },
+      {
+        id: "partner_2",
+        nameAr: "المهندس شريف منصور (ممول استثماري عيني)",
+        nameEn: "Eng. Sherif Mansour (Investment Financer)",
+        phone: "+201144556677",
+        sharePercent: 10,
+        capitalContributed: 1000000,
+        contractNotesAr: "تمويل كاش بالجنيه المصري لدعم سيولة شراء الذهب المستعمل والمشغولات وتصفية ربع سنوية",
+        contractNotesEn: "Cash liquidity injection for raw gold acquisitions with quarterly settlements",
+        transactions: [
+          {
+            id: "ptx_2_1",
+            date: "2026-05-15",
+            type: "capital_inject",
+            amount: 1000000,
+            descriptionAr: "إيداع كاش تمويلي لدعم المشتريات والسيولة",
+            descriptionEn: "Liquidity development support cash deposit"
+          }
+        ]
+      }
+    ];
+  });
+
+  const [pyramidsCapital, setPyramidsCapital] = useState<number>(() => {
+    const saved = localStorage.getItem("pyramids_corporate_capital");
+    return saved ? Number(saved) : 3000000;
+  });
+
+  const [companyShare, setCompanyShare] = useState<number>(() => {
+    const saved = localStorage.getItem("pyramids_company_share_percent");
+    return saved ? Number(saved) : 75;
+  });
+
+  const [partnersPoolShare, setPartnersPoolShare] = useState<number>(() => {
+    const saved = localStorage.getItem("pyramids_partners_pool_share_percent");
+    return saved ? Number(saved) : 25;
+  });
+
+  // Partners states persistence handlers
+  useEffect(() => {
+    localStorage.setItem("pyramids_partners", JSON.stringify(partners));
+  }, [partners]);
+
+  useEffect(() => {
+    localStorage.setItem("pyramids_corporate_capital", pyramidsCapital.toString());
+  }, [pyramidsCapital]);
+
+  useEffect(() => {
+    localStorage.setItem("pyramids_company_share_percent", companyShare.toString());
+  }, [companyShare]);
+
+  useEffect(() => {
+    localStorage.setItem("pyramids_partners_pool_share_percent", partnersPoolShare.toString());
+  }, [partnersPoolShare]);
 
   // Daily suggestions gold rates
   const [goldPrices, setGoldPrices] = useState<DailyGoldPrices>({
@@ -121,7 +211,7 @@ export default function App() {
   const [showPasscodeModal, setShowPasscodeModal] = useState<boolean>(false);
 
   // Navigation tab (defaults to transaction screen 'purchases' if not admin mode)
-  const [activeTab, setActiveTab] = useState<"dashboard" | "safes" | "purchases" | "sales" | "dealers" | "expenses" | "ledger" | "settings" | "workshops" | "syncCenter">(() => {
+  const [activeTab, setActiveTab] = useState<"dashboard" | "safes" | "purchases" | "sales" | "dealers" | "expenses" | "ledger" | "settings" | "workshops" | "syncCenter" | "partners">(() => {
     const admin = localStorage.getItem("pyramids_admin_mode") === "true";
     return admin ? "dashboard" : "purchases";
   });
@@ -276,6 +366,7 @@ export default function App() {
     tabLedger: isArabic ? "سجل كافة العمليات" : "All Operations Log",
     tabWorkshops: isArabic ? "حسابات الورش والمسابك" : "Workshops Ledger",
     tabSyncCenter: isArabic ? "☁️ مزامنة Google وشيتات الأقسام" : "☁️ Google Sync & Sheet Center",
+    tabPartners: isArabic ? "📊 الشركاء وتوزيع الأرباح" : "📊 Partners & Dividends",
     tabSettings: isArabic ? "الخزنة ونسخ الدفاتر" : "Private Vault",
     goldRefTitle: isArabic ? "أسعار غرامات الاسترشاد اليومية:" : "Reference price of gold:",
     walletBalanceLabel: isArabic ? "صندوق الخزنة الخاصة:" : "Private Box Balance:",
@@ -396,6 +487,19 @@ export default function App() {
     const updatedStatements = [dealerStatementItem, ...dealerStatements];
     setDealerStatements(updatedStatements);
     saveToLocalStorage("pyramids_dealer_statements", updatedStatements);
+
+    // Double-Entry cash flow receipt into Treasury:
+    const saleTx: PrivateWalletTransaction = {
+      id: `w_sale_${newSale.id}`,
+      date: newSale.date,
+      type: "sale_receipt",
+      descriptionAr: `فاتورة بيع ذهب عيار ${newSale.detectedKarat} بوزن ${newSale.actualWeight} جم للتاجر ${dNameAr} بقيمة ${newSale.goldValue} ج.م`,
+      descriptionEn: `Received cash from dealer ${dNameEn} for gold sale (${newSale.detectedKarat} k) weight ${newSale.actualWeight}g`,
+      amount: newSale.goldValue // cash enters private wallet
+    };
+    const updatedWallet = [saleTx, ...walletTransactions];
+    setWalletTransactions(updatedWallet);
+    saveToLocalStorage("pyramids_wallet", updatedWallet);
   };
 
   const handleDeleteSale = (id: string) => {
@@ -406,6 +510,11 @@ export default function App() {
     const updatedStatements = dealerStatements.filter((ds) => !ds.id.startsWith(`ds_sale_${id}_`));
     setDealerStatements(updatedStatements);
     saveToLocalStorage("pyramids_dealer_statements", updatedStatements);
+
+    // Reverse treasury cash flow entry
+    const updatedWallet = walletTransactions.filter((w) => w.id !== `w_sale_${id}`);
+    setWalletTransactions(updatedWallet);
+    saveToLocalStorage("pyramids_wallet", updatedWallet);
   };
 
   // 3. EXPENSES INPUT
@@ -744,6 +853,10 @@ export default function App() {
         setAssayLogs([]);
         setWorkshops([]);
         setWorkshopTransactions([]);
+        setPartners([]);
+        setPyramidsCapital(3000000);
+        setCompanyShare(100);
+        setPartnersPoolShare(0);
 
         saveToLocalStorage("pyramids_dealers", []);
         saveToLocalStorage("pyramids_dealer_statements", []);
@@ -754,6 +867,10 @@ export default function App() {
         saveToLocalStorage("pyramids_assay_logs", []);
         saveToLocalStorage("pyramids_workshops", []);
         saveToLocalStorage("pyramids_workshop_transactions", []);
+        saveToLocalStorage("pyramids_partners", []);
+        saveToLocalStorage("pyramids_corporate_capital", 3000000);
+        saveToLocalStorage("pyramids_company_share_percent", 100);
+        saveToLocalStorage("pyramids_partners_pool_share_percent", 0);
 
         showAlert(isArabic ? "تم تصفير ومسح كافة الدفاتر وإعادة تهيئة الحسابات للصفر بنجاح!" : "All accounting ledger books successfully cleared and reset back to zero!");
       }
@@ -821,7 +938,17 @@ export default function App() {
   };
 
   // Compute live wallet cash representation
+  const totalPartnerCapital = partners.reduce((sum, p) => sum + p.capitalContributed, 0);
+  const totalEnterpriseCapital = pyramidsCapital + totalPartnerCapital;
+
+  const totalPartnerWithdrawals = partners.reduce((sum, p) => {
+    return sum + p.transactions
+      .filter((t) => t.type === "dividend_withdraw")
+      .reduce((tSum, t) => tSum + t.amount, 0);
+  }, 0);
+
   const absoluteWalletCash = walletTransactions.reduce((acc, t) => acc + t.amount, 0);
+  const privateWalletBalance = totalEnterpriseCapital - totalPartnerWithdrawals + absoluteWalletCash;
 
   return (
     <div
@@ -1074,6 +1201,21 @@ export default function App() {
               {isAdminMode && (
                 <button
                   type="button"
+                  onClick={() => setActiveTab("partners")}
+                  className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap md:w-full ${
+                    activeTab === "partners"
+                      ? "bg-amber-500 text-slate-950 shadow-md md:shadow-amber-500/10"
+                      : "text-slate-300 hover:text-white hover:bg-slate-900"
+                  }`}
+                >
+                  <Users className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  <span>{alt.tabPartners}</span>
+                </button>
+              )}
+
+              {isAdminMode && (
+                <button
+                  type="button"
                   onClick={() => setActiveTab("settings")}
                   className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-black transition-all md:w-full md:mt-2 whitespace-nowrap ltr:md:ml-0 ltr:ml-auto rtl:md:mr-0 rtl:mr-auto ${
                     activeTab === "settings"
@@ -1093,10 +1235,10 @@ export default function App() {
           <div className="hidden md:flex bg-slate-950/60 p-4 rounded-2xl border border-slate-850/60 flex-col gap-3 w-full">
             <div>
               <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block mb-1">
-                {isArabic ? "حالة سيولة الخزينة" : "Vault Liquid Cash"}
+                {isArabic ? "إجمالي سيولة الخزينة" : "Unified Vault Cash"}
               </span>
-              <div className={`text-sm font-mono font-black tracking-tight ${absoluteWalletCash >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                {formatCurrency(absoluteWalletCash, isArabic)}
+              <div className={`text-sm font-mono font-black tracking-tight ${privateWalletBalance >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                {formatCurrency(privateWalletBalance, isArabic)}
               </div>
             </div>
 
@@ -1113,7 +1255,7 @@ export default function App() {
 
         {/* ACTIVE RAILS VIEWPORT */}
         <div id="active-tab-viewport" className="flex-1 w-full min-w-0 transition-all duration-300">
-          {["dashboard", "safes", "dealers", "ledger", "syncCenter", "settings"].includes(activeTab) && !isAdminMode ? (
+          {["dashboard", "safes", "dealers", "ledger", "syncCenter", "settings", "partners"].includes(activeTab) && !isAdminMode ? (
             <div className="bg-[#0c1322] border border-slate-850 rounded-2xl p-8 sm:p-12 text-center max-w-lg mx-auto my-8 sm:my-16 shadow-2xl flex flex-col items-center animate-fade-in" id="restricted-admin-access-card">
               <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-full flex items-center justify-center mb-6 shadow-zinc-950">
                 <Lock className="w-6 h-6 animate-pulse text-amber-500" />
@@ -1151,6 +1293,7 @@ export default function App() {
               onAddWalletTransaction={handleAddWalletTransaction}
               showConfirm={showConfirm}
               showAlert={showAlert}
+              privateWalletBalance={privateWalletBalance}
             />
           )}
 
@@ -1176,6 +1319,7 @@ export default function App() {
               onGoogleSignIn={handleGoogleSheetsLogin}
               onGoogleSheetsLogout={handleGoogleSheetsLogout}
               showAlert={showAlert}
+              privateWalletBalance={privateWalletBalance}
             />
           )}
 
@@ -1291,6 +1435,26 @@ export default function App() {
               onGoogleSignIn={handleGoogleSheetsLogin}
               onGoogleSheetsLogout={handleGoogleSheetsLogout}
               showAlert={showAlert}
+            />
+          )}
+
+          {activeTab === "partners" && (
+            <PartnersManager
+              purchases={purchases}
+              sales={sales}
+              expenses={expenses}
+              walletTransactions={walletTransactions}
+              isArabic={isArabic}
+              showConfirm={showConfirm}
+              showAlert={showAlert}
+              partners={partners}
+              setPartners={setPartners}
+              pyramidsCapital={pyramidsCapital}
+              setPyramidsCapital={setPyramidsCapital}
+              companyShare={companyShare}
+              setCompanyShare={setCompanyShare}
+              partnersPoolShare={partnersPoolShare}
+              setPartnersPoolShare={setPartnersPoolShare}
             />
           )}
 

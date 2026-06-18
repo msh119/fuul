@@ -66,6 +66,7 @@ interface SafesCenterProps {
   onGoogleSignIn: () => Promise<void>;
   onGoogleSheetsLogout: () => Promise<void>;
   showAlert: (message: string) => void;
+  privateWalletBalance: number;
 }
 
 export default function SafesCenter({
@@ -89,6 +90,7 @@ export default function SafesCenter({
   onGoogleSignIn,
   onGoogleSheetsLogout,
   showAlert,
+  privateWalletBalance,
 }: SafesCenterProps) {
   // Manual Box Cash Capital adjustment states
   const [isCaptialAdjustOpen, setIsCapitalAdjustOpen] = useState(false);
@@ -97,8 +99,7 @@ export default function SafesCenter({
   const [adjustDescEn, setAdjustDescEn] = useState("");
   const [adjustType, setAdjustType] = useState<"deposit" | "withdraw">("deposit");
 
-  // Shop central balances
-  const privateWalletBalance = walletTransactions.reduce((acc, t) => acc + t.amount, 0);
+  // Shop central balances (Liaised via state props to maintain corporate unity)
   const netGoldSafeActualWeight = purchases.reduce((acc, p) => acc + p.actualWeight, 0) -
     dealerStatements.reduce((acc, ds) => acc + ds.actualWeight, 0);
   const netGoldSafeEquivalentWeight = purchases.reduce((acc, p) => acc + p.equivalentWeight21, 0) -

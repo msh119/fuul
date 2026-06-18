@@ -113,3 +113,25 @@ export interface WorkshopTransaction {
   descriptionEn: string;
 }
 
+export interface PartnerTransaction {
+  id: string;
+  date: string;
+  type: 'capital_inject' | 'dividend_withdraw'; // capital injection or cash reward/withdrawal
+  amount: number;
+  descriptionAr: string;
+  descriptionEn: string;
+}
+
+export interface Partner {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  phone?: string;
+  sharePercent: number; // overall direct profit/loss ratio of the company (e.g. 15 for 15%)
+  capitalContributed: number; // Total core seed money
+  transactions: PartnerTransaction[];
+  contractNotesAr?: string; // Special agreement note in Arabic
+  contractNotesEn?: string; // Special agreement note in English
+}
+
+

@@ -53,6 +53,7 @@ interface DashboardOverviewProps {
   onAddWalletTransaction: (newTx: PrivateWalletTransaction) => void;
   showConfirm: (message: string, onConfirm: () => void) => void;
   showAlert: (message: string) => void;
+  privateWalletBalance: number;
 }
 
 export default function DashboardOverview({
@@ -68,6 +69,7 @@ export default function DashboardOverview({
   onAddWalletTransaction,
   showConfirm,
   showAlert,
+  privateWalletBalance,
 }: DashboardOverviewProps) {
   const [filterType, setFilterType] = useState<string>("all");
 
@@ -187,8 +189,8 @@ export default function DashboardOverview({
     profitFormulaLabel: isArabic ? "معادلة احتساب ربحية الدفتر" : "Market Profit Formula (Tahyeef Balanced)",
   };
 
-  // 1. Calculate Private Wallet Balance (Sum of walletTransactions.amount)
-  const privateWalletBalance = walletTransactions.reduce((acc, t) => acc + t.amount, 0);
+  // 1. Calculate Private Wallet Balance (Liaised via state props)
+  // privateWalletBalance is passed down directly to maintain corporate unity
 
   // 2. Calculate Total Assay Revenues
   const totalAssayRevenues = walletTransactions
