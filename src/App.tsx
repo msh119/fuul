@@ -1455,6 +1455,7 @@ export default function App() {
               setCompanyShare={setCompanyShare}
               partnersPoolShare={partnersPoolShare}
               setPartnersPoolShare={setPartnersPoolShare}
+              privateWalletBalance={privateWalletBalance}
             />
           )}
 

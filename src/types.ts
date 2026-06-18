@@ -68,7 +68,7 @@ export interface PublicExpenseItem {
 export interface PrivateWalletTransaction {
   id: string;
   date: string;
-  type: 'deposit' | 'withdraw' | 'purchase_payment' | 'sale_receipt' | 'assay_fee_income' | 'expense_overhead' | 'broker_fee_payment' | 'loan_cash_received' | 'loan_cash_paid';
+  type: 'deposit' | 'withdraw' | 'purchase_payment' | 'sale_receipt' | 'assay_fee_income' | 'expense_overhead' | 'broker_fee_payment' | 'loan_cash_received' | 'loan_cash_paid' | 'partner_dividend_payout' | 'partner_capital_injection';
   descriptionAr: string;
   descriptionEn: string;
   amount: number; // positive for income, negative for outflow

@@ -42,6 +42,8 @@ interface PartnersManagerProps {
   setCompanyShare: (val: number) => void;
   partnersPoolShare: number;
   setPartnersPoolShare: (val: number) => void;
+  privateWalletBalance: number;
+  setWalletTransactions?: React.Dispatch<React.SetStateAction<PrivateWalletTransaction[]>>;
 }
 
 export default function PartnersManager({
@@ -60,6 +62,8 @@ export default function PartnersManager({
   setCompanyShare,
   partnersPoolShare,
   setPartnersPoolShare,
+  privateWalletBalance,
+  setWalletTransactions,
 }: PartnersManagerProps) {
   // SECURITY STATE
   const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
@@ -207,6 +211,48 @@ export default function PartnersManager({
   const totalPartnersAllocatedShare = partners.reduce((acc, p) => acc + p.sharePercent, 0);
   const totalCapitalContributed = partners.reduce((acc, p) => acc + p.capitalContributed, 0);
 
+  // Corporate Profit Allocation & Vault Liquidity Matrix data
+  const summaryRows = [
+    {
+      id: "company",
+      type: "company",
+      nameAr: "مؤسسة بيراميدز (الحصة التشغيلية)",
+      nameEn: "Pyramids Enterprise (Operational Stake)",
+      sharePercent: companyShare,
+      capital: pyramidsCapital,
+      earnedProfits: netBusinessProfit * (companyShare / 100),
+      withdrawals: 0,
+      netDues: netBusinessProfit * (companyShare / 100),
+      vaultCashShare: privateWalletBalance * (companyShare / 100)
+    },
+    ...partners.map((p) => {
+      const calc = getPartnerBalancesAndCalculations(p);
+      return {
+        id: p.id,
+        type: "partner",
+        nameAr: p.nameAr,
+        nameEn: p.nameEn,
+        sharePercent: p.sharePercent,
+        capital: p.capitalContributed,
+        earnedProfits: calc.earnedProfits,
+        withdrawals: calc.totalWithdrawals,
+        netDues: calc.earnedProfits - calc.totalWithdrawals,
+        vaultCashShare: privateWalletBalance * (p.sharePercent / 100)
+      };
+    })
+  ];
+
+  // Totals for table summary
+  const totalSummaryCapital = pyramidsCapital + totalCapitalContributed;
+  const totalSummaryEarnedProfits = netBusinessProfit;
+  const totalSummaryWithdrawals = partners.reduce((sum, p) => {
+    return sum + p.transactions
+      .filter((t) => t.type === "dividend_withdraw")
+      .reduce((tSum, t) => tSum + t.amount, 0);
+  }, 0);
+  const totalSummaryNetDues = totalSummaryEarnedProfits - totalSummaryWithdrawals;
+  const totalSummaryVaultCash = privateWalletBalance;
+
   // Ratios handler
   const handleSaveRatios = () => {
     if (tempCompanyShare + tempPartnersShare !== 100) {
@@ -353,6 +399,14 @@ export default function PartnersManager({
         ? `هل أنت متأكد تماماً من شطب الشريك (${name}) من الدفتر تماماً؟ سيؤدي ذلك لشطب كامل بيانات رأس المال وتاريخ العمليات المحاسبية الخاصة به.`
         : `Decommission stakeholder ledger of (${name}) permanently? All ledger history and capital will be expunged.`,
       () => {
+        const partnerToDelete = partners.find((p) => p.id === id);
+        if (partnerToDelete && setWalletTransactions) {
+          const txIdsToDelete = partnerToDelete.transactions.map((t) => `w_ptx_${t.id}`);
+          const updatedWallet = walletTransactions.filter((w) => !txIdsToDelete.includes(w.id));
+          setWalletTransactions(updatedWallet);
+          localStorage.setItem("pyramids_wallet", JSON.stringify(updatedWallet));
+        }
+
         const updated = partners.filter((p) => p.id !== id);
         setPartners(updated);
         showAlert(isArabic ? "تم شطب وتصفية سجل الشريك بنجاح." : "Stakeholder profile removed.");
@@ -411,9 +465,33 @@ export default function PartnersManager({
     });
 
     setPartners(updatedPartners);
+
+    // Double-entry cash flow logging in Central Vault:
+    if (setWalletTransactions) {
+      const pNameAr = selectedPartnerForTx.nameAr;
+      const pNameEn = selectedPartnerForTx.nameEn;
+
+      const vaultTx: PrivateWalletTransaction = {
+        id: `w_ptx_${newTx.id}`,
+        date: newTx.date,
+        type: txType === "dividend_withdraw" ? "partner_dividend_payout" : "partner_capital_injection",
+        descriptionAr: txType === "dividend_withdraw"
+          ? `مسحوبات أرباح الشريك (${pNameAr}): ${txDescAr}`
+          : `تمويل كاش إضافي من الشريك (${pNameAr}): ${txDescAr}`,
+        descriptionEn: txType === "dividend_withdraw"
+          ? `Dividend withdrawal of Partner (${pNameEn}): ${txDescEn}`
+          : `Capital injection by Partner (${pNameEn}): ${txDescEn}`,
+        amount: txType === "dividend_withdraw" ? -amountNum : amountNum
+      };
+
+      const updatedWallet = [vaultTx, ...walletTransactions];
+      setWalletTransactions(updatedWallet);
+      localStorage.setItem("pyramids_wallet", JSON.stringify(updatedWallet));
+    }
+
     setShowTxModal(false);
     setSelectedPartnerForTx(null);
-    showAlert(isArabic ? "تم تسجيل وترحيل الحركة المالية في حسابات الشريك بنجاح!" : "Transaction successfully written to stakeholder history!");
+    showAlert(isArabic ? "تم تسجيل وترحيل الحركة المالية في حسابات الشريك وبخزنة المحل بنجاح!" : "Transaction successfully written to stakeholder history and deducted from shop vault!");
   };
 
   // Delete transaction
@@ -437,6 +515,14 @@ export default function PartnersManager({
           return p;
         });
         setPartners(updated);
+
+        // Delete double-entry from central vault
+        if (setWalletTransactions) {
+          const updatedWallet = walletTransactions.filter((tx) => tx.id !== `w_ptx_${txId}`);
+          setWalletTransactions(updatedWallet);
+          localStorage.setItem("pyramids_wallet", JSON.stringify(updatedWallet));
+        }
+
         showAlert(isArabic ? "تم إلغاء قيد الحركة وإرجاع الموازنة." : "Transaction reverted successfully.");
       }
     );
@@ -926,6 +1012,127 @@ export default function PartnersManager({
           <span>{t.ratioAlertWarning}</span>
         </div>
       )}
+
+      {/* CUMULATIVE PARTNERS PROFIT & LOSS ALLOCATION & TREASURY CASH COVERAGE TABLE */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg p-5 space-y-4">
+        <div className="flex border-b border-slate-850 pb-3 justify-between items-center">
+          <div>
+            <h3 className="text-xs font-black text-slate-100 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <span>{isArabic ? "جدول توزيع الأرباح التراكمي وتغطية السيولة في الخزنة" : "Cumulative P&L Allocation & Vault Liquidity Matrix"}</span>
+            </h3>
+            <p className="text-[10px] text-slate-500 font-bold leading-normal mt-0.5" dir="auto">
+              {isArabic 
+                ? "مقارنة دقيقة توضح نصيب كل طرف من الأرباح المحققة مقابل مسحوباته، ومقدار غطائه النقدي الفعلي من سيولة الخزنة الجارية."
+                : "A granular snapshot of each stakeholder's accumulated profits vs withdrawals, and their proportional coverage of live physical treasury liquidity."}
+            </p>
+          </div>
+          <span className="text-[9px] font-mono font-extrabold bg-slate-950 p-1.5 rounded-lg border border-slate-850 text-slate-400">
+            {isArabic ? "مُحدث آنياً" : "REAL-TIME MATRIX"}
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs font-medium border-collapse">
+            <thead>
+              <tr className="bg-slate-950/70 text-[10px] text-slate-500 font-extrabold uppercase border-b border-slate-850">
+                <th className="py-2.5 px-3 text-right">{isArabic ? "الطرف / الشريك" : "Stakeholder / Partner"}</th>
+                <th className="py-2.5 px-3 text-center">{isArabic ? "النسبة %" : "Stake %"}</th>
+                <th className="py-2.5 px-3 text-center">{isArabic ? "رأس المال المودع" : "Injected Capital"}</th>
+                <th className="py-2.5 px-3 text-center">{isArabic ? "الأرباح التراكمية" : "Accrued P&L"}</th>
+                <th className="py-2.5 px-3 text-center">{isArabic ? "المسحوبات المحسوبة" : "Dividends Drawn"}</th>
+                <th className="py-2.5 px-3 text-center">{isArabic ? "صافي المستحقات" : "Net Unpaid Dues"}</th>
+                <th className="py-2.5 px-3 text-left">{isArabic ? "نصيب السيولة بالخزنة" : "Proportional Vault Cash"}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-850/60 font-mono text-slate-300">
+              {summaryRows.map((row) => {
+                const hasDues = row.netDues > 0;
+                // Calculate liquidity coverage of dues if they are positive
+                const coveragePercent = hasDues
+                  ? (privateWalletBalance >= row.netDues ? 100 : Math.max(0, Math.round((privateWalletBalance / row.netDues) * 100)))
+                  : 100;
+
+                return (
+                  <tr key={row.id} className={`hover:bg-slate-950/30 transition-colors ${row.type === 'company' ? 'bg-amber-500/[0.01]' : ''}`}>
+                    <td className="py-3 px-3 font-sans font-bold text-slate-100 text-right">
+                      <div className="flex items-center gap-1.5 justify-start">
+                        <span className={`w-1.5 h-1.5 rounded-full ${row.type === 'company' ? 'bg-amber-500' : 'bg-blue-400'}`} />
+                        <span>{isArabic ? row.nameAr : row.nameEn}</span>
+                        {row.type === 'company' && (
+                          <span className="text-[8px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded font-black border border-amber-500/20">
+                            {isArabic ? "المحفظة الأم" : "OPERATIONAL"}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 text-center text-slate-400 font-extrabold">{row.sharePercent}%</td>
+                    <td className="py-3 px-3 text-center text-slate-200">{formatCurrency(row.capital, isArabic)}</td>
+                    <td className={`py-3 px-3 text-center font-bold ${row.earnedProfits >= 0 ? "text-emerald-450" : "text-rose-455"}`}>
+                      {row.earnedProfits >= 0 ? "+" : ""}{formatCurrency(row.earnedProfits, isArabic)}
+                    </td>
+                    <td className="py-3 px-3 text-center text-rose-450">{formatCurrency(row.withdrawals, isArabic)}</td>
+                    <td className={`py-3 px-3 text-center font-black ${row.netDues >= 0 ? "text-emerald-450" : "text-rose-400"}`}>
+                      {formatCurrency(row.netDues, isArabic)}
+                    </td>
+                    <td className="py-3 px-3 text-left">
+                      <div className="flex flex-col items-start gap-1 justify-end">
+                        <span className="text-blue-400 font-black text-[12.5px]">
+                          {formatCurrency(row.vaultCashShare, isArabic)}
+                        </span>
+                        {row.netDues > 0 && (
+                          <span className={`text-[8.5px] font-sans px-1.5 py-0.5 rounded-md font-extrabold border ${
+                            coveragePercent >= 100 
+                              ? "bg-emerald-500/5 text-emerald-400 border-emerald-500/15" 
+                              : coveragePercent > 50 
+                              ? "bg-amber-500/5 text-amber-400 border-amber-500/15" 
+                              : "bg-rose-500/5 text-rose-400 border-rose-500/15"
+                          }`}>
+                            {isArabic 
+                              ? `تغطية سيولة الخزنة للأرباح: ${coveragePercent}%`
+                              : `Vault payout coverage: ${coveragePercent}%`}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {/* Aggregated Totals row representation */}
+              <tr className="bg-slate-950/50 border-t-2 border-slate-800 text-[11px] font-black">
+                <td className="py-3 px-3 font-sans font-black text-slate-200 text-right">
+                  {isArabic ? "مجموع الميزانية الشاملة للشركاء" : "Enterprise Aggregates / Totals"}
+                </td>
+                <td className="py-3 px-3 text-center text-slate-400">{companyShare + totalPartnersAllocatedShare}%</td>
+                <td className="py-3 px-3 text-center text-blue-400">{formatCurrency(totalSummaryCapital, isArabic)}</td>
+                <td className={`py-3 px-3 text-center font-black ${totalSummaryEarnedProfits >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {totalSummaryEarnedProfits >= 0 ? "+" : ""}{formatCurrency(totalSummaryEarnedProfits, isArabic)}
+                </td>
+                <td className="py-3 px-3 text-center text-rose-400">{formatCurrency(totalSummaryWithdrawals, isArabic)}</td>
+                <td className={`py-3 px-3 text-center font-black ${totalSummaryNetDues >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {formatCurrency(totalSummaryNetDues, isArabic)}
+                </td>
+                <td className="py-3 px-3 text-left text-blue-400 text-sm">
+                  <div className="flex flex-col items-start">
+                    <span className="font-extrabold">{formatCurrency(totalSummaryVaultCash, isArabic)}</span>
+                    <span className="text-[8px] font-sans text-slate-500 uppercase tracking-widest">{isArabic ? "رصيد الذهب والسيولة الموحد" : "Total Shop Liquid reserves"}</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-850/60 text-[10px] text-slate-400 space-y-1" dir="auto">
+          <p className="flex items-center gap-1.5 leading-relaxed text-slate-400">
+            <span className="text-amber-500">💡</span>
+            <span>
+              {isArabic
+                ? "توضيح محاسبي: يتم احتساب الأرباح التراكمية بناءً على نسبة حصة كل شريك من إجمالي أرباح المحل القائمة بالتسييل (Tahyeef Balanced). غطاء الخزنة يمثل نصيبهم في المتوفر نقداً في الخزانة الآن لتسهيل عمليات التوزيع."
+                : "Accounting Note: Accrued P&L values are updated on-the-fly dynamically based on each partner's configured profit share ratio. Proportional liquidity displays their fractional claim on the real-time physical vault cash."}
+            </span>
+          </p>
+        </div>
+      </div>
 
       {/* PARTNERS DETAILED LIST SECTION */}
       <div className="space-y-4">
