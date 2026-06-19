@@ -47,10 +47,20 @@ export default function PurchasesManager({
   // Model state variables
   const [customerName, setCustomerName] = useState("");
   const [weight, setWeight] = useState("");
-  const [karatValue, setKaratValue] = useState("842"); // Default initial state to match mockup (842 Karat)
+  const [currentKarat, setCurrentKarat] = useState("21"); // Default commercial/current karat
+  const [karatValue, setKaratValue] = useState("875"); // Default initial state to match 21K (875 Karat)
   const [price21, setPrice21] = useState("6150"); // Default initial price (6150 EGP)
   const [assayFee, setAssayFee] = useState("200"); // Default assay fee (200 EGP)
   const [brokerFee, setBrokerFee] = useState("300"); // Default broker fee (300 EGP)
+
+  const handleCurrentKaratChange = (val: string) => {
+    setCurrentKarat(val);
+    const numericVal = Number(val);
+    if (numericVal > 0) {
+      const millesimal = getMillesimalKarat(numericVal);
+      setKaratValue(String(millesimal));
+    }
+  };
 
   // Last submitted breakdown report for visual feedback
   const [submittedReport, setSubmittedReport] = useState<any | null>(null);
@@ -63,8 +73,8 @@ export default function PurchasesManager({
     customerLabel: isArabic ? "اسم العميل المورد *" : "Customer / Broker Name *",
     customerPlaceholder: isArabic ? "سجل اسم العميل بالكامل" : "Enter customer's full name",
     weightLabel: isArabic ? "الوزن الفعلي الحالي (جرام) *" : "Actual Gold Weight (g) *",
-    karatLabel: isArabic ? "العيار الفعلي الداخلي *" : "Detected Karat / Fineness *",
-    karatHint: isArabic ? "مثال: 21 أو 842 بالتيزاب" : "e.g., 21 or 842",
+    karatLabel: isArabic ? "عيار المعمل *" : "Lab Assay Karat *",
+    karatHint: isArabic ? "مثال: 875 أو 21" : "e.g., 875 or 21",
     price21Label: isArabic ? "سعر غرام عيار 21 اليومي المتفق عليه *" : "Agreed Price of Karat 21 / 875 *",
     assayFeeLabel: isArabic ? "رسم التحليل والششنة كاش (ج.م)" : "Assay Fee Received (EGP)",
     brokerFeeLabel: isArabic ? "عمولة السمسار المضافة كـ مصروف حركة" : "Transaction Broker Fee (Outflow)",
@@ -150,6 +160,7 @@ export default function PurchasesManager({
       customerName,
       actualWeight: numericWeight,
       detectedKarat: numericKarat,
+      currentKarat: Number(currentKarat),
       equivalentWeight21: calculatedEquivWeight21,
       price21: numericPrice21,
       goldValue: calculatedGoldValue,
@@ -165,6 +176,7 @@ export default function PurchasesManager({
       customerName,
       actualWeight: numericWeight,
       detectedKarat: numericKarat,
+      currentKarat: Number(currentKarat),
       millesimalKarat,
       equivWeight: calculatedEquivWeight21,
       price21: numericPrice21,
@@ -176,7 +188,8 @@ export default function PurchasesManager({
     // Reset inputs
     setCustomerName("");
     setWeight("");
-    setKaratValue("842");
+    setCurrentKarat("21");
+    setKaratValue("875");
     setPrice21("6150");
     setAssayFee("200");
     setBrokerFee("300");
@@ -232,7 +245,7 @@ export default function PurchasesManager({
             </div>
 
             {/* WEIGHT & KARAT VALUE */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div>
                 <label className="block mb-1 text-slate-400">{t.weightLabel}</label>
                 <div className="relative">
@@ -252,8 +265,26 @@ export default function PurchasesManager({
 
               <div>
                 <label className="block mb-1 text-slate-400 flex justify-between">
+                  <span>{isArabic ? "العيار الحالي *" : "Current Karat *"}</span>
+                  <span className="text-[10px] text-amber-500 font-bold">({isArabic ? "عيار" : "K"})</span>
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  min="1"
+                  max="24"
+                  required
+                  value={currentKarat}
+                  onChange={(e) => handleCurrentKaratChange(e.target.value)}
+                  placeholder="21"
+                  className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white text-left font-mono outline-none focus:ring-1 focus:ring-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1 text-slate-400 flex justify-between">
                   <span>{t.karatLabel}</span>
-                  <span className="text-[10px] text-slate-500">({t.karatHint})</span>
+                  <span className="text-[10px] text-amber-500 font-bold">({t.karatHint})</span>
                 </label>
                 <input
                   type="number"
@@ -263,7 +294,7 @@ export default function PurchasesManager({
                   required
                   value={karatValue}
                   onChange={(e) => setKaratValue(e.target.value)}
-                  placeholder="21 or 842"
+                  placeholder="875"
                   className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white text-left font-mono outline-none focus:ring-1 focus:ring-amber-500"
                 />
               </div>
@@ -384,7 +415,11 @@ export default function PurchasesManager({
                   <span className="font-mono text-slate-300">{submittedReport.actualWeight.toFixed(2)}g</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">{isArabic ? "العيار المقاس بالتيزاب:" : "Detected Assay Karat:"}</span>
+                  <span className="text-slate-500">{isArabic ? "العيار التجاري الحالي:" : "Commercial Current Karat:"}</span>
+                  <span className="font-mono text-amber-500 font-bold">{submittedReport.currentKarat || 21}K</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">{isArabic ? "عيار المعمل الفعلي (الششنة):" : "Lab Assay Fineness:"}</span>
                   <span className="font-mono text-slate-300">{submittedReport.detectedKarat}</span>
                 </div>
                 <div className="flex justify-between">
@@ -506,7 +541,9 @@ export default function PurchasesManager({
                           <td className="p-3 font-mono text-[10px] whitespace-nowrap text-slate-400">{p.date}</td>
                           <td className="p-3 font-bold text-slate-100 whitespace-nowrap">{p.customerName}</td>
                           <td className="p-3 text-center font-mono font-bold">{p.actualWeight.toFixed(2)}g</td>
-                          <td className="p-3 text-center font-mono text-slate-400">{p.detectedKarat}</td>
+                          <td className="p-3 text-center font-mono text-slate-400">
+                            {p.currentKarat ? `${p.currentKarat}K (${p.detectedKarat})` : p.detectedKarat}
+                          </td>
                           <td className="p-3 text-center font-mono text-amber-400 font-bold">{p.equivalentWeight21.toFixed(3)}g</td>
                           <td className="p-3 text-center font-mono text-slate-400">{formatCurrency(p.price21, isArabic)}</td>
                           <td className="p-3 text-center font-mono text-amber-500 font-black">{formatCurrency(p.goldValue, isArabic)}</td>

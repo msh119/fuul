@@ -19,7 +19,7 @@ import {
   FileSpreadsheet
 } from "lucide-react";
 import { PublicExpenseItem, AssayLogItem } from "../types";
-import { formatCurrency, formatWeight, downloadCSV } from "../utils";
+import { formatCurrency, formatWeight, downloadCSV, getMillesimalKarat } from "../utils";
 
 interface ExpensesManagerProps {
   expenses: PublicExpenseItem[];
@@ -57,8 +57,18 @@ export default function ExpensesManager({
   // Standalone Assay Log local form (for simple diagnostic tests paid in cash)
   const [assayClient, setAssayClient] = useState("");
   const [assayWeight, setAssayWeight] = useState("");
-  const [assayKarat, setAssayKarat] = useState("875");
+  const [assayCurrentKarat, setAssayCurrentKarat] = useState("21"); // Default commercial current karat
+  const [assayKarat, setAssayKarat] = useState("875"); // Default standard (875 Karat)
   const [assayFeeCollected, setAssayFeeCollected] = useState("200");
+
+  const handleAssayCurrentKaratChange = (val: string) => {
+    setAssayCurrentKarat(val);
+    const numericVal = Number(val);
+    if (numericVal > 0) {
+      const millesimal = getMillesimalKarat(numericVal);
+      setAssayKarat(String(millesimal));
+    }
+  };
 
   // Search filter
   const [expenseSearch, setExpenseSearch] = useState("");
@@ -140,7 +150,7 @@ export default function ExpensesManager({
     clientLabel: isArabic ? "اسم العميل المورّد للتحليل *" : "Customer Name for Diagnostic *",
     clientPlaceholder: isArabic ? "مثال: صائغ محلي كاش" : "e.g., Local jeweler cash walkin",
     weightLabel: isArabic ? "الوزن الفعلي المفحوص (جرام) *" : "Inspected Gold Weight (g) *",
-    karatLabel: isArabic ? "العيار التقريبي المستهدف بالتيزاب" : "Estimated Karat",
+    karatLabel: isArabic ? "عيار المعمل *" : "Lab Assay Karat *",
     feeLabel: isArabic ? "رسم الفحص الكاش المقبوض *" : "Diagnostic Fee Collected (EGP) *",
     submitAssay: isArabic ? "تسجيل رسم الششنة وإثبات الدفعة" : "Register Assay Testing Income",
     totalOverhead: isArabic ? "إجمالي المصاريف التشغيلية الكلية" : "Total Workshop Running Expenses",
@@ -201,6 +211,7 @@ export default function ExpensesManager({
       clientName: assayClient,
       actualWeight: weightNum,
       detectedKarat: karatNum,
+      currentKarat: Number(assayCurrentKarat),
       assayFeeCollected: feeNum,
     };
 
@@ -209,6 +220,7 @@ export default function ExpensesManager({
     // Reset fields
     setAssayClient("");
     setAssayWeight("");
+    setAssayCurrentKarat("21");
     setAssayKarat("875");
     setAssayFeeCollected("200");
   };
@@ -362,16 +374,38 @@ export default function ExpensesManager({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block mb-1 text-slate-400">{t.karatLabel}</label>
+                <label className="block mb-1 text-slate-400 flex justify-between">
+                  <span>{isArabic ? "العيار الحالي *" : "Current Karat *"}</span>
+                  <span className="text-[10px] text-emerald-500 font-bold">({isArabic ? "عيار" : "K"})</span>
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  min="1"
+                  max="24"
+                  required
+                  value={assayCurrentKarat}
+                  onChange={(e) => handleAssayCurrentKaratChange(e.target.value)}
+                  placeholder="21"
+                  className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white text-left font-mono outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1 text-slate-400 flex justify-between">
+                  <span>{t.karatLabel}</span>
+                  <span className="text-[10px] text-emerald-500 font-bold">({isArabic ? "ششنة" : "assay"})</span>
+                </label>
                 <input
                   type="number"
                   step="any"
                   required
                   value={assayKarat}
                   onChange={(e) => setAssayKarat(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white text-left font-mono outline-none/focus:ring-1 focus:ring-emerald-500"
+                  placeholder="875"
+                  className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white text-left font-mono outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
 
@@ -534,7 +568,9 @@ export default function ExpensesManager({
                           <td className="p-2.5 font-mono text-slate-500">{log.date}</td>
                           <td className="p-2.5 font-bold text-slate-100 whitespace-nowrap">{log.clientName || log.customerName || "-"}</td>
                           <td className="p-2.5 text-center font-mono">{log.actualWeight.toFixed(2)}g</td>
-                          <td className="p-2.5 text-center font-mono text-slate-400">{log.detectedKarat}</td>
+                          <td className="p-2.5 text-center font-mono text-slate-400">
+                            {log.currentKarat ? `${log.currentKarat}K (${log.detectedKarat})` : log.detectedKarat}
+                          </td>
                           <td className="p-2.5 text-center font-mono font-bold text-emerald-450">+{formatCurrency(log.assayFeeCollected || log.assayFee || 0, isArabic)}</td>
                           <td className="p-2.5 text-center">
                             <button

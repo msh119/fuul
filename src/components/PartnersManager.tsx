@@ -693,7 +693,7 @@ export default function PartnersManager({
             <Key className="absolute right-3.5 top-3 w-4 h-4 text-slate-500" />
             <input
               type="password"
-              placeholder={isArabic ? "أدخل كود المرور الخاص بالشركاء (XULA9611)" : "Enter confidential code (XULA9611)"}
+              placeholder={isArabic ? "أدخل كود المرور الخاص بالشركاء لمنع الدخول غير المصرح" : "Enter confidential partner passcode to unlock"}
               value={securityCodeInput}
               onChange={(e) => {
                 setSecurityCodeInput(e.target.value);
