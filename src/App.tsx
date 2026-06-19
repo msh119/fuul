@@ -417,7 +417,6 @@ export default function App() {
         customerName: newPurchase.customerName,
         actualWeight: newPurchase.actualWeight,
         detectedKarat: newPurchase.detectedKarat,
-        currentKarat: newPurchase.currentKarat,
         assayFee: newPurchase.assayFee
       };
 
@@ -478,8 +477,8 @@ export default function App() {
       id: `ds_sale_${newSale.id}_${newSale.dealerId}`,
       date: newSale.date,
       type: "gold_sold_to_dealer",
-      descriptionAr: `مقاصة تسوية ذهب عيار ${newSale.currentKarat ? `${newSale.currentKarat}K (${newSale.detectedKarat})` : newSale.detectedKarat} بوزن ${newSale.actualWeight}g لتسديد السلف`,
-      descriptionEn: `Delivered gold of ${newSale.currentKarat ? `${newSale.currentKarat}K (${newSale.detectedKarat})` : newSale.detectedKarat} karat weight ${newSale.actualWeight}g`,
+      descriptionAr: `مقاصة تسوية ذهب عيار ${newSale.detectedKarat} بوزن ${newSale.actualWeight}g لتسديد السلف`,
+      descriptionEn: `Delivered gold of ${newSale.detectedKarat} karat weight ${newSale.actualWeight}g`,
       cashAmount: 0,
       actualWeight: newSale.actualWeight,
       karatValue: newSale.detectedKarat,

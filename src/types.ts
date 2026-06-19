@@ -37,7 +37,6 @@ export interface PurchaseItem {
   customerName: string;
   actualWeight: number;
   detectedKarat: number; // can be e.g. 842 or 21 (if <= 24, converted to millesimal)
-  currentKarat?: number; // Commercial / rough category karat (e.g. 21, 18, 24)
   equivalentWeight21: number; // calculated at 875 ref
   price21: number;
   goldValue: number; // equivalentWeight21 * price21
@@ -51,7 +50,6 @@ export interface SaleItem {
   dealerId: string;
   actualWeight: number;
   detectedKarat: number; // can be e.g. 852
-  currentKarat?: number; // Commercial / rough category karat (e.g. 21, 18, 24)
   equivalentWeight21: number;
   price21: number;
   goldValue: number;
@@ -83,7 +81,6 @@ export interface AssayLogItem {
   clientName?: string;
   actualWeight: number;
   detectedKarat: number;
-  currentKarat?: number;
   assayFee?: number;
   assayFeeCollected?: number;
 }

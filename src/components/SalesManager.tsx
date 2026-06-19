@@ -48,18 +48,8 @@ export default function SalesManager({
   // Model state variables
   const [selectedDealerId, setSelectedDealerId] = useState(dealers[0]?.id || "");
   const [weight, setWeight] = useState("");
-  const [currentKarat, setCurrentKarat] = useState("21"); // Default commercial/current karat
-  const [karatValue, setKaratValue] = useState("875"); // Default standard (875 Karat for 21K)
+  const [karatValue, setKaratValue] = useState("852"); // Default mockup state (852 Karat)
   const [price21, setPrice21] = useState("6170"); // Default matchup price (6170 EGP)
-
-  const handleCurrentKaratChange = (val: string) => {
-    setCurrentKarat(val);
-    const numericVal = Number(val);
-    if (numericVal > 0) {
-      const millesimal = getMillesimalKarat(numericVal);
-      setKaratValue(String(millesimal));
-    }
-  };
 
   // Sync selectedDealerId if the list of dealers changes or if the current choice is not valid
   React.useEffect(() => {
@@ -80,8 +70,8 @@ export default function SalesManager({
     title: isArabic ? "بيع وتسوية ذهب مع التاجر (مقاصة)" : "Sell & Offset Gold to Dealer (Mokassa)",
     dealerLabel: isArabic ? "اختر التاجر المستلم *" : "Select Recipient Dealer *",
     weightLabel: isArabic ? "الوزن الفعلي المصدر (جرام) *" : "Actual Selling Weight (g) *",
-    karatLabel: isArabic ? "عيار المعمل *" : "Lab Assay Karat *",
-    karatHint: isArabic ? "مثال: 875 أو 21" : "e.g., 875 or 21",
+    karatLabel: isArabic ? "العيار المنقول *" : "Transfer Karat / Fineness *",
+    karatHint: isArabic ? "مثال: 21 أو 852" : "e.g., 21 or 852",
     price21Label: isArabic ? "سعر غرام عيار 21 المتفق عليه *" : "Agreed Price of Karat 21 / 875 *",
     financialOffset: isArabic ? "أثر تسوية ومقاصة السلفيات النقدية" : "Private Loan Offset & Settlings Tracker",
     liveSummary: isArabic ? "الحساب التلقائي لصافي المعلقات والتصفية" : "Automated Live Statement Balancings",
@@ -183,7 +173,6 @@ export default function SalesManager({
       dealerId: selectedDealerId,
       actualWeight: numericWeight,
       detectedKarat: numericKarat,
-      currentKarat: Number(currentKarat),
       equivalentWeight21: calculatedEquivWeight21,
       price21: numericPrice21,
       goldValue: calculatedGoldValue,
@@ -193,8 +182,7 @@ export default function SalesManager({
 
     // Reset weights
     setWeight("");
-    setCurrentKarat("21");
-    setKaratValue("875");
+    setKaratValue("852");
     setPrice21("6170");
   };
 
@@ -251,7 +239,7 @@ export default function SalesManager({
             </div>
 
             {/* WEIGHTS, SELLING KARATS & PRICES OF 21 */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block mb-1 text-slate-400">{t.weightLabel}</label>
                 <div className="relative">
@@ -271,26 +259,8 @@ export default function SalesManager({
 
               <div>
                 <label className="block mb-1 text-slate-400 flex justify-between">
-                  <span>{isArabic ? "العيار الحالي *" : "Current Karat *"}</span>
-                  <span className="text-[10px] text-amber-500 font-bold">({isArabic ? "عيار" : "K"})</span>
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  min="1"
-                  max="24"
-                  required
-                  value={currentKarat}
-                  onChange={(e) => handleCurrentKaratChange(e.target.value)}
-                  placeholder="21"
-                  className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white text-left font-mono outline-none focus:ring-1 focus:ring-rose-500"
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1 text-slate-400 flex justify-between">
                   <span>{t.karatLabel}</span>
-                  <span className="text-[10px] text-amber-500 font-bold">({t.karatHint})</span>
+                  <span className="text-[10px] text-slate-500">({t.karatHint})</span>
                 </label>
                 <input
                   type="number"
@@ -300,7 +270,7 @@ export default function SalesManager({
                   required
                   value={karatValue}
                   onChange={(e) => setKaratValue(e.target.value)}
-                  placeholder="875"
+                  placeholder="21 or 852"
                   className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white text-left font-mono outline-none focus:ring-1 focus:ring-rose-500"
                 />
               </div>
@@ -471,9 +441,7 @@ export default function SalesManager({
                       <td className="p-3 font-mono text-[10px] text-slate-400 whitespace-nowrap">{s.date}</td>
                       <td className="p-3 font-bold text-slate-100 whitespace-nowrap">{isArabic ? dl?.nameAr : dl?.nameEn}</td>
                       <td className="p-3 text-center font-mono font-bold">{s.actualWeight.toFixed(2)}g</td>
-                      <td className="p-3 text-center font-mono text-slate-400">
-                        {s.currentKarat ? `${s.currentKarat}K (${s.detectedKarat})` : s.detectedKarat}
-                      </td>
+                      <td className="p-3 text-center font-mono text-slate-400">{s.detectedKarat}</td>
                       <td className="p-3 text-center font-mono text-amber-500 font-bold">{s.equivalentWeight21.toFixed(3)}g</td>
                       <td className="p-3 text-center font-mono text-slate-400">{formatCurrency(s.price21, isArabic)}</td>
                       <td className="p-3 text-center font-mono text-emerald-400 font-black">{formatCurrency(s.goldValue, isArabic)}</td>
