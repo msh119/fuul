@@ -152,7 +152,8 @@ export default function LocalDatabaseConsole({
 
   const handleConfirmOverride = (e: React.FormEvent) => {
     e.preventDefault();
-    if (overrideCode === "Xula9611") {
+    const code = overrideCode.trim().toUpperCase();
+    if (code === "XULA9611" || code === "202620") {
       if (!overrideModal) return;
 
       const { type, section, recordId, itemData } = overrideModal;

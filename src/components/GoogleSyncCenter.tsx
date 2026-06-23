@@ -28,7 +28,11 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
-  FileText
+  FileText,
+  CloudUpload,
+  CloudDownload,
+  Upload,
+  FileJson
 } from "lucide-react";
 import {
   Dealer,
@@ -42,6 +46,12 @@ import {
   WorkshopTransaction
 } from "../types";
 import { downloadCSV, formatCurrency, formatWeight } from "../utils";
+import {
+  getFullBackupData,
+  restoreFullBackupData,
+  backupToGoogleDrive,
+  restoreFromGoogleDrive
+} from "../googleSheetsSync";
 
 interface GoogleSyncCenterProps {
   purchases: PurchaseItem[];
@@ -90,6 +100,116 @@ export default function GoogleSyncCenter({
 }: GoogleSyncCenterProps) {
   const [showInstructions, setShowInstructions] = useState(false);
   const [syncSuccessLog, setSyncSuccessLog] = useState<string | null>(null);
+  
+  // Backup & Recovery States
+  const [isSyncingDriveBackup, setIsSyncingDriveBackup] = useState(false);
+  const [driveBackupStatus, setDriveBackupStatus] = useState<string | null>(null);
+  const [localBackupStatus, setLocalBackupStatus] = useState<string | null>(null);
+
+  // Local JSON Backup (Download)
+  const handleLocalBackupDownload = () => {
+    try {
+      const backup = getFullBackupData();
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
+      const downloadAnchor = document.createElement("a");
+      const dateStr = new Date().toISOString().split("T")[0];
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `pyramids_gold_backup_${dateStr}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      setLocalBackupStatus(isArabic ? "تم تحميل ملف النسخة الاحتياطية بنجاح!" : "Local backup downloaded successfully!");
+    } catch (error: any) {
+      console.error(error);
+      showAlert(isArabic ? "فشل تصدير ملف النسخة الاحتياطية." : "Failed to export local backup.");
+    }
+  };
+
+  // Local JSON Restore (Upload)
+  const handleLocalBackupUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const parsed = JSON.parse(content);
+        const success = restoreFullBackupData(parsed);
+        if (success) {
+          setLocalBackupStatus(isArabic ? "تم استعادة البيانات بنجاح! جاري تحديث التطبيق..." : "Restore successful! Reloading application...");
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } else {
+          showAlert(isArabic ? "ملف غير صالح! تأكد من أنه ملف نسخة احتياطية لنظام الأهرام للذهب." : "Invalid backup file! Please ensure it's a valid Pyramids Gold backup.");
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert(isArabic ? "خطأ في قراءة وتحليل ملف النسخة الاحتياطية." : "Error parsing the backup file.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Google Drive Upload Backup
+  const handleDriveBackupUpload = async () => {
+    if (!googleToken) {
+      showAlert(isArabic ? "يرجى تسجيل الدخول بحساب Google أولاً!" : "Please login with Google first!");
+      return;
+    }
+    try {
+      setIsSyncingDriveBackup(true);
+      setDriveBackupStatus(null);
+      const backup = getFullBackupData();
+      await backupToGoogleDrive(googleToken, backup);
+      const now = new Date().toLocaleTimeString();
+      setDriveBackupStatus(isArabic ? `تم رفع النسخة الاحتياطية إلى Google Drive بنجاح في تمام الساعة ${now}` : `Cloud backup saved to Google Drive successfully at ${now}`);
+    } catch (error: any) {
+      console.error(error);
+      showAlert(isArabic ? "فشل رفع النسخة الاحتياطية إلى Google Drive." : "Cloud backup failed on Google Drive.");
+    } finally {
+      setIsSyncingDriveBackup(false);
+    }
+  };
+
+  // Google Drive Download Backup and Restore
+  const handleDriveBackupRestore = async () => {
+    if (!googleToken) {
+      showAlert(isArabic ? "يرجى تسجيل الدخول بحساب Google أولاً!" : "Please login with Google first!");
+      return;
+    }
+    const confirmed = window.confirm(
+      isArabic 
+        ? "تنبيه هام جداً: سيتم استبدال جميع البيانات الحالية في المتصفح بالبيانات الموجودة في السحابة. هل أنت متأكد من الاستمرار؟" 
+        : "CRITICAL WARNING: This will overwrite all your current local browser data with the cloud backup. Do you want to proceed?"
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsSyncingDriveBackup(true);
+      setDriveBackupStatus(null);
+      const backup = await restoreFromGoogleDrive(googleToken);
+      if (!backup) {
+        showAlert(isArabic ? "لم يتم العثور على أي ملف نسخة احتياطية في حسابك على Google Drive." : "No backup file found in your Google Drive.");
+        return;
+      }
+      const success = restoreFullBackupData(backup);
+      if (success) {
+        setDriveBackupStatus(isArabic ? "تم استيراد النسخة الاحتياطية من السحاب بنجاح! جاري تحديث التطبيق..." : "Cloud backup restored successfully! Reloading application...");
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        showAlert(isArabic ? "الملف السحابي غير صالح للاستعادة." : "The cloud backup file is invalid for restoration.");
+      }
+    } catch (error: any) {
+      console.error(error);
+      showAlert(isArabic ? "فشل تنزيل أو استيراد النسخة الاحتياطية من Google Drive." : "Failed to download and import Google Drive cloud backup.");
+    } finally {
+      setIsSyncingDriveBackup(false);
+    }
+  };
 
   // Manual trigger wrapper to provide direct logs
   const handleTriggerSync = async () => {
@@ -590,6 +710,114 @@ export default function GoogleSyncCenter({
             </div>
           </div>
 
+        </div>
+      </div>
+
+      {/* 2.5 COMPLETE SYSTEM BACKUP & RESTORE CENTER */}
+      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
+        <div>
+          <h3 className="text-md font-bold text-amber-400 flex items-center gap-2">
+            <RefreshCw className="w-5 h-5 text-amber-500 animate-pulse" />
+            <span>{isArabic ? "النسخ الاحتياطي الشامل (جوجل درايف والجهاز المحلي)" : "Unified System Backup & Recovery Hub"}</span>
+          </h3>
+          <p className="text-xs text-slate-400 mt-1">
+            {isArabic
+              ? "قم بحماية كافة بيانات المؤسسة (شركاء، تجار، ورش، مشتريات، مبيعات، خزنة، مصروفات، ششنة) في ملف واحد مضغوط وتخزينه سحابياً أو محلياً."
+              : "Secure your entire database including partners, dealers, workshops, purchases, sales, cashbox, overheads, and assays into a single encrypted JSON vault."}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Column A: Google Drive Cloud Backup */}
+          <div className="bg-slate-950/60 p-5 rounded-xl border border-slate-850 space-y-4">
+            <div className="flex items-center gap-2">
+              <CloudUpload className="w-5 h-5 text-amber-500" />
+              <h4 className="text-sm font-bold text-slate-200">
+                {isArabic ? "ألف: المزامنة السحابية الكاملة (Google Drive)" : "A: Full Cloud Sync (Google Drive)"}
+              </h4>
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              {isArabic
+                ? "احفظ نسخة احتياطية حية من قاعدة بياناتك مباشرة في حسابك على جوجل درايف باسم 'pyramids_gold_backup.json' أو استرجعها في أي وقت بنقرة واحدة."
+                : "Store a full snapshot directly to your Google Drive in a file named 'pyramids_gold_backup.json' or restore it anytime."}
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                onClick={handleDriveBackupUpload}
+                disabled={isSyncingDriveBackup || !googleToken}
+                className="flex-1 py-2.5 px-4 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 text-xs font-black rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <CloudUpload className="w-4 h-4" />
+                <span>{isSyncingDriveBackup ? (isArabic ? "جاري الرفع..." : "Uploading...") : (isArabic ? "رفع نسخة سحابية كاملة" : "Upload Full Cloud Backup")}</span>
+              </button>
+
+              <button
+                onClick={handleDriveBackupRestore}
+                disabled={isSyncingDriveBackup || !googleToken}
+                className="flex-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-850 disabled:opacity-50 disabled:cursor-not-allowed text-amber-400 hover:text-amber-300 border border-slate-800 hover:border-amber-500/20 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <CloudDownload className="w-4 h-4" />
+                <span>{isSyncingDriveBackup ? (isArabic ? "جاري الاسترجاع..." : "Restoring...") : (isArabic ? "استرجاع من السحاب" : "Restore from Cloud Backup")}</span>
+              </button>
+            </div>
+
+            {!googleToken && (
+              <p className="text-[10px] text-rose-400 font-medium">
+                {isArabic ? "* يرجى ربط حساب جوجل من الأعلى لتمكين النسخ الاحتياطي السحابي." : "* Please connect your Google Account above to enable cloud backup."}
+              </p>
+            )}
+
+            {driveBackupStatus && (
+              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-[11px] font-bold animate-fade-in flex items-center gap-1.5">
+                <CheckCircle className="w-4 h-4 shrink-0" />
+                <span>{driveBackupStatus}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Column B: Local Machine Backup */}
+          <div className="bg-slate-950/60 p-5 rounded-xl border border-slate-850 space-y-4">
+            <div className="flex items-center gap-2">
+              <FileJson className="w-5 h-5 text-teal-400" />
+              <h4 className="text-sm font-bold text-slate-200">
+                {isArabic ? "ب: النسخ الاحتياطي المحلي والملفات (جهازك)" : "B: Local Offline Backup & Files (Your Device)"}
+              </h4>
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              {isArabic
+                ? "قم بتنزيل قاعدة بيانات المحل بالكامل كملف احتياطي مشفر ومحمي بامتداد JSON على جهازك، ويمكنك تحميل الملف واستيراده لاحقاً لإعادة تشغيل الحسابات."
+                : "Download your full storefront ledger structure as a standard JSON backup file or import any previous JSON file to completely restore state."}
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                onClick={handleLocalBackupDownload}
+                className="flex-1 py-2.5 px-4 bg-teal-500 hover:bg-teal-600 text-slate-950 text-xs font-black rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>{isArabic ? "تحميل نسخة احتياطية للجهاز" : "Download Local Backup"}</span>
+              </button>
+
+              <label className="flex-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-850 text-teal-400 hover:text-teal-300 border border-slate-800 hover:border-teal-500/20 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer text-center text-xs font-bold">
+                <Upload className="w-4 h-4" />
+                <span>{isArabic ? "استيراد واستعادة من ملف" : "Restore from Local File"}</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleLocalBackupUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            {localBackupStatus && (
+              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-[11px] font-bold animate-fade-in flex items-center gap-1.5">
+                <CheckCircle className="w-4 h-4 shrink-0" />
+                <span>{localBackupStatus}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

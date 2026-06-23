@@ -182,7 +182,8 @@ export default function PartnersManager({
   // CHECK SECURITY CODE ENTRY
   const handleVerifyPasscode = (e: React.FormEvent) => {
     e.preventDefault();
-    if (securityCodeInput.trim() === "XULA9611") {
+    const code = securityCodeInput.trim().toUpperCase();
+    if (code === "XULA9611" || code === "202620") {
       setIsUnlocked(true);
       setSecurityError(false);
       sessionStorage.setItem("pyramids_partners_unlocked_session", "true");

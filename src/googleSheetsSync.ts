@@ -480,3 +480,157 @@ export const syncAllLedgersToGoogleSheets = async (
     throw new Error(`Google Sheets sync command failed: ${errorText}`);
   }
 };
+
+/**
+ * Scans localStorage and packages all Pyramids-related data into a JSON structure
+ */
+export const getFullBackupData = (): any => {
+  const backup: any = {
+    _backup_app_id: "pyramids_gold",
+    _backup_timestamp: new Date().toISOString(),
+  };
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith("pyramids_")) {
+      if (key === "pyramids_partners_unlocked_session") continue;
+      try {
+        const val = localStorage.getItem(key);
+        if (val) {
+          backup[key] = JSON.parse(val);
+        }
+      } catch (e) {
+        // Fallback for string preferences
+        backup[key] = localStorage.getItem(key);
+      }
+    }
+  }
+  return backup;
+};
+
+/**
+ * Restores all Pyramids-related data from a JSON structure to localStorage
+ */
+export const restoreFullBackupData = (backup: any): boolean => {
+  if (!backup || backup._backup_app_id !== "pyramids_gold") {
+    return false;
+  }
+  
+  // Clean existing pyramids data to avoid conflicts, except spreadsheet configuration or unlocked sessions
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith("pyramids_") && key !== "pyramids_google_spreadsheet_id" && key !== "pyramids_partners_unlocked_session") {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+
+  // Write new data
+  Object.keys(backup).forEach((key) => {
+    if (key.startsWith("pyramids_")) {
+      const val = backup[key];
+      if (typeof val === "object" && val !== null) {
+        localStorage.setItem(key, JSON.stringify(val));
+      } else if (val !== undefined && val !== null) {
+        localStorage.setItem(key, String(val));
+      }
+    }
+  });
+  return true;
+};
+
+/**
+ * Saves a full backup JSON object to the user's Google Drive as pyramids_gold_backup.json
+ */
+export const backupToGoogleDrive = async (accessToken: string, backupData: any): Promise<void> => {
+  // 1. Search if file already exists
+  const searchRes = await fetch("https://www.googleapis.com/drive/v3/files?q=name='pyramids_gold_backup.json'+and+trashed=false", {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  
+  if (!searchRes.ok) {
+    const errorText = await searchRes.text();
+    throw new Error(`Failed to query Google Drive files: ${errorText}`);
+  }
+
+  const searchData = await searchRes.json();
+  const files = searchData.files || [];
+  let fileId = "";
+
+  if (files.length > 0) {
+    fileId = files[0].id;
+  } else {
+    // Create new file metadata
+    const createRes = await fetch("https://www.googleapis.com/drive/v3/files", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: "pyramids_gold_backup.json",
+        mimeType: "application/json"
+      })
+    });
+
+    if (!createRes.ok) {
+      const errorText = await createRes.text();
+      throw new Error(`Failed to create Google Drive file metadata: ${errorText}`);
+    }
+
+    const createdData = await createRes.json();
+    fileId = createdData.id;
+  }
+
+  // 2. Upload file content
+  const uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(backupData, null, 2)
+  });
+
+  if (!uploadRes.ok) {
+    const errorText = await uploadRes.text();
+    throw new Error(`Failed to upload backup content to Google Drive: ${errorText}`);
+  }
+};
+
+/**
+ * Downloads pyramids_gold_backup.json from the user's Google Drive and returns the JSON content
+ */
+export const restoreFromGoogleDrive = async (accessToken: string): Promise<any> => {
+  // 1. Find file
+  const searchRes = await fetch("https://www.googleapis.com/drive/v3/files?q=name='pyramids_gold_backup.json'+and+trashed=false", {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+
+  if (!searchRes.ok) {
+    const errorText = await searchRes.text();
+    throw new Error(`Failed to query Google Drive: ${errorText}`);
+  }
+
+  const searchData = await searchRes.json();
+  const files = searchData.files || [];
+
+  if (files.length === 0) {
+    return null;
+  }
+
+  const fileId = files[0].id;
+
+  // 2. Download contents
+  const downloadRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+
+  if (!downloadRes.ok) {
+    const errorText = await downloadRes.text();
+    throw new Error(`Failed to download backup file from Google Drive: ${errorText}`);
+  }
+
+  return await downloadRes.json();
+};
+
