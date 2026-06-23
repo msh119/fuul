@@ -67,6 +67,7 @@ import {
   INITIAL_ASSAY_LOGS,
   INITIAL_WORKSHOPS,
   INITIAL_WORKSHOP_TRANSACTIONS,
+  INITIAL_PARTNERS,
   loadFromLocalStorage,
   saveToLocalStorage,
   formatCurrency,
@@ -115,63 +116,22 @@ export default function App() {
         // Fallback
       }
     }
-    return [
-      {
-        id: "partner_1",
-        nameAr: "الحاج أحمد العسيلي (شريك ذهب ومورّد)",
-        nameEn: "Al-Haj Ahmed El-Assily (Wholesale Partner)",
-        phone: "+201011223344",
-        sharePercent: 15,
-        capitalContributed: 1500000,
-        contractNotesAr: "اتفاق توريد وتسهيلات بيع جملة بالذهب الكسر الششنة وحساب بالوزن العيني",
-        contractNotesEn: "Wholesale facility and scrap gold weight supply custom agreement",
-        transactions: [
-          {
-            id: "ptx_1_1",
-            date: "2026-05-01",
-            type: "capital_inject",
-            amount: 1500000,
-            descriptionAr: "ضخ رأس مال تأسيسي بدفتر الشركاء الموحد للذهب",
-            descriptionEn: "Initial capital injection registered in partners safe book"
-          }
-        ]
-      },
-      {
-        id: "partner_2",
-        nameAr: "المهندس شريف منصور (ممول استثماري عيني)",
-        nameEn: "Eng. Sherif Mansour (Investment Financer)",
-        phone: "+201144556677",
-        sharePercent: 10,
-        capitalContributed: 1000000,
-        contractNotesAr: "تمويل كاش بالجنيه المصري لدعم سيولة شراء الذهب المستعمل والمشغولات وتصفية ربع سنوية",
-        contractNotesEn: "Cash liquidity injection for raw gold acquisitions with quarterly settlements",
-        transactions: [
-          {
-            id: "ptx_2_1",
-            date: "2026-05-15",
-            type: "capital_inject",
-            amount: 1000000,
-            descriptionAr: "إيداع كاش تمويلي لدعم المشتريات والسيولة",
-            descriptionEn: "Liquidity development support cash deposit"
-          }
-        ]
-      }
-    ];
+    return [];
   });
 
   const [pyramidsCapital, setPyramidsCapital] = useState<number>(() => {
     const saved = localStorage.getItem("pyramids_corporate_capital");
-    return saved ? Number(saved) : 3000000;
+    return saved ? Number(saved) : 0;
   });
 
   const [companyShare, setCompanyShare] = useState<number>(() => {
     const saved = localStorage.getItem("pyramids_company_share_percent");
-    return saved ? Number(saved) : 75;
+    return saved ? Number(saved) : 100;
   });
 
   const [partnersPoolShare, setPartnersPoolShare] = useState<number>(() => {
     const saved = localStorage.getItem("pyramids_partners_pool_share_percent");
-    return saved ? Number(saved) : 25;
+    return saved ? Number(saved) : 0;
   });
 
   // Partners states persistence handlers
@@ -248,36 +208,6 @@ export default function App() {
     let savedDealers = loadFromLocalStorage<Dealer[]>("pyramids_dealers", []);
     let savedStatements = loadFromLocalStorage<DealerStatementItem[]>("pyramids_dealer_statements", []);
 
-    // Check if dealer Maged already exists. If not, auto-inject him with 12,125 EGP debt
-    const magedExists = savedDealers.some(d => d.id === "d_maged" || d.nameAr === "ماجد" || d.nameEn === "Maged");
-    if (!magedExists) {
-      const magedDealer: Dealer = {
-        id: "d_maged",
-        nameAr: "ماجد",
-        nameEn: "Maged",
-        phone: "01011112222"
-      };
-      const magedDebtItem: DealerStatementItem = {
-        id: "ds_maged_debt_d_maged",
-        date: "2026-06-14",
-        type: "loan_paid_cash",
-        descriptionAr: "رصيد مديونية مستحق على التاجر ماجد",
-        descriptionEn: "Initial outstanding debt owed by Maged",
-        cashAmount: -12125,
-        actualWeight: 0,
-        karatValue: 0,
-        equivalentWeight21: 0,
-        price21: 0,
-        goldValue: 0
-      };
-
-      savedDealers = [...savedDealers, magedDealer];
-      savedStatements = [...savedStatements, magedDebtItem];
-
-      saveToLocalStorage("pyramids_dealers", savedDealers);
-      saveToLocalStorage("pyramids_dealer_statements", savedStatements);
-    }
-
     setDealers(savedDealers);
     setDealerStatements(savedStatements);
     
@@ -330,9 +260,9 @@ export default function App() {
       saveToLocalStorage("pyramids_wallet", repairedWallet);
     }
     
-    // Workshops and separate ledger safes loaders
-    setWorkshops(loadFromLocalStorage<Workshop[]>("pyramids_workshops", INITIAL_WORKSHOPS));
-    setWorkshopTransactions(loadFromLocalStorage<WorkshopTransaction[]>("pyramids_workshop_transactions", INITIAL_WORKSHOP_TRANSACTIONS));
+    // Workshops and separate ledger safes loaders (empty by default for new books)
+    setWorkshops(loadFromLocalStorage<Workshop[]>("pyramids_workshops", []));
+    setWorkshopTransactions(loadFromLocalStorage<WorkshopTransaction[]>("pyramids_workshop_transactions", []));
     
     const savedPrices = localStorage.getItem("pyramids_gold_prices");
     if (savedPrices) {
@@ -848,6 +778,10 @@ export default function App() {
         setAssayLogs(INITIAL_ASSAY_LOGS);
         setWorkshops(INITIAL_WORKSHOPS);
         setWorkshopTransactions(INITIAL_WORKSHOP_TRANSACTIONS);
+        setPartners(INITIAL_PARTNERS);
+        setPyramidsCapital(3000000);
+        setCompanyShare(75);
+        setPartnersPoolShare(25);
 
         saveToLocalStorage("pyramids_dealers", INITIAL_DEALERS);
         saveToLocalStorage("pyramids_dealer_statements", INITIAL_DEALER_STATEMENTS);
@@ -858,6 +792,10 @@ export default function App() {
         saveToLocalStorage("pyramids_assay_logs", INITIAL_ASSAY_LOGS);
         saveToLocalStorage("pyramids_workshops", INITIAL_WORKSHOPS);
         saveToLocalStorage("pyramids_workshop_transactions", INITIAL_WORKSHOP_TRANSACTIONS);
+        saveToLocalStorage("pyramids_partners", INITIAL_PARTNERS);
+        saveToLocalStorage("pyramids_corporate_capital", 3000000);
+        saveToLocalStorage("pyramids_company_share_percent", 75);
+        saveToLocalStorage("pyramids_partners_pool_share_percent", 25);
 
         showAlert(isArabic ? "تم استرجاع العينات والبيانات التجريبية بنجاح!" : "Reference seed database successfully loaded!");
       }

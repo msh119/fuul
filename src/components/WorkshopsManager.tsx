@@ -23,7 +23,9 @@ import {
   X,
   TrendingDown,
   TrendingUp,
-  Info
+  Info,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { Workshop, WorkshopTransaction, Dealer } from "../types";
 import { formatCurrency, formatWeight, getMillesimalKarat, calculateEquivalentWeight, downloadCSV } from "../utils";
@@ -90,6 +92,7 @@ export default function WorkshopsManager({
   // Filter & Search ledger inside selected workshop page
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTxType, setFilterTxType] = useState("all");
+  const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
 
   // Synchronize selectedWorkshopId if workshops list changes
   useEffect(() => {
@@ -165,7 +168,7 @@ export default function WorkshopsManager({
     goldSafeActual: isArabic ? "عهدة الذهب الخام بالورشة" : "Workshop Actual Gold Stock",
     goldSafeEquiv: isArabic ? "عهدة عيار 21 المعادل للورشة" : "Workshop Equivalent 21K Stock",
     directAdjustTitle: isArabic ? "تعديل رصيد الخزائن يدويًا (إيداع / سحب مباشر)" : "Direct Vault Modifications (Immediate cash/gold load)",
-    pFormTitle: isArabic ? "شراء ذهب من عميل (لحساب الورشة)" : "Buy Gold from Customer (Workshop Payout)",
+    pFormTitle: isArabic ? "بيع من عميل لحساب المسبك أو الورشة (شراء وتوريد ذهب)" : "Sale from Customer to Foundry/Workshop Account (Gold Purchase)",
     sFormTitle: isArabic ? "بيع ذهب من الورشة لتاجر" : "Sell Workshop Gold to Dealer",
     custNameLabel: isArabic ? "اسم العميل المورد للذهب *" : "Client Forwarded *",
     custNamePlaceholder: isArabic ? "العميل المرسل من الورشة" : "Client sent by refinery",
@@ -1119,59 +1122,201 @@ export default function WorkshopsManager({
                       <tbody className="divide-y divide-slate-800 text-slate-350">
                         {filteredTransactions.map((tx) => {
                           const hasEgpDelta = tx.cashAmount !== 0;
+                          const isExpanded = expandedTxId === tx.id;
                           
                           let typeTagLabel: string = tx.type;
-                          if (tx.type === "purchase") typeTagLabel = isArabic ? "شراء عميل" : "Customer Buy";
-                          else if (tx.type === "sale") typeTagLabel = isArabic ? "بيع تاجر" : "Dealer Sale";
-                          else if (tx.type === "cash_deposit") typeTagLabel = isArabic ? "+ شحن كاش" : "Fund Cash (+)";
-                          else if (tx.type === "cash_withdrawal") typeTagLabel = isArabic ? "- سحب كاش" : "Withdraw Cash (-)";
-                          else if (tx.type === "gold_deposit") typeTagLabel = isArabic ? "+ إيداع ذهب" : "Fund Gold (+)";
-                          else if (tx.type === "gold_withdrawal") typeTagLabel = isArabic ? "- سحب ذهب" : "Withdraw Gold (-)";
+                          let typeColor = "bg-slate-800 text-slate-350";
+                          if (tx.type === "purchase") {
+                            typeTagLabel = isArabic ? "بيع من عميل لحساب المسبك" : "Client Sale to Foundry";
+                            typeColor = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                          } else if (tx.type === "sale") {
+                            typeTagLabel = isArabic ? "تسوية مبيعات لتاجر" : "Dealer Sale Settled";
+                            typeColor = "bg-rose-500/10 text-rose-455 border border-rose-500/20";
+                          } else if (tx.type === "cash_deposit") {
+                            typeTagLabel = isArabic ? "إيداع كاش (+)" : "Fund Cash (+)";
+                            typeColor = "bg-amber-500/10 text-amber-400 border border-amber-500/20";
+                          } else if (tx.type === "cash_withdrawal") {
+                            typeTagLabel = isArabic ? "سحب كاش (-)" : "Withdraw Cash (-)";
+                            typeColor = "bg-blue-500/10 text-blue-450 border border-blue-500/20";
+                          } else if (tx.type === "gold_deposit") {
+                            typeTagLabel = isArabic ? "إيداع ذهب عيناً (+)" : "Fund Gold (+)";
+                            typeColor = "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20";
+                          } else if (tx.type === "gold_withdrawal") {
+                            typeTagLabel = isArabic ? "سحب ذهب عيناً (-)" : "Withdraw Gold (-)";
+                            typeColor = "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20";
+                          }
 
                           return (
-                            <tr key={tx.id} className="hover:bg-slate-800/10 transition-colors">
-                              <td className="p-3 font-mono text-[10px] text-slate-400 whitespace-nowrap">{tx.date}</td>
-                              <td className="p-3">
-                                <span className="font-semibold text-slate-100">{isArabic ? tx.descriptionAr : tx.descriptionEn}</span>
-                                {tx.customerName && (
-                                  <span className="block text-[10px] text-slate-500 font-medium mt-0.5">
-                                    {isArabic ? "مرسل من العميل: " : "Forwarded client: "}{tx.customerName}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="p-3 text-center font-mono font-bold">
-                                {tx.actualWeight > 0 ? formatWeight(tx.actualWeight, isArabic) : "-"}
-                              </td>
-                              <td className="p-3 text-center font-mono text-amber-500 font-bold">
-                                {tx.equivalentWeight21 > 0 ? formatWeight(tx.equivalentWeight21, isArabic) : "-"}
-                              </td>
-                              <td className="p-3 text-center font-mono text-slate-400">
-                                {tx.detectedKarat > 0 ? tx.detectedKarat : "-"}
-                              </td>
-                              <td className="p-3 text-center whitespace-nowrap font-mono font-bold">
-                                {hasEgpDelta ? (
-                                  <span className={tx.cashAmount >= 0 ? "text-emerald-400" : "text-rose-450"}>
-                                    {tx.cashAmount >= 0 ? "+" : ""}{formatCurrency(tx.cashAmount, isArabic)}
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-500">-</span>
-                                )}
-                              </td>
-                              <td className="p-3 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    showConfirm(dictionary.deleteTxAlert, () => {
-                                      onDeleteWorkshopTransaction(tx.id);
-                                    });
-                                  }}
-                                  className="p-1 px-1.5 bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 rounded transition-colors"
-                                  title={isArabic ? "حذف الحركة" : "Delete recorded line"}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              </td>
-                            </tr>
+                            <React.Fragment key={tx.id}>
+                              {/* Main Row */}
+                              <tr 
+                                onClick={() => setExpandedTxId(isExpanded ? null : tx.id)}
+                                className={`hover:bg-slate-850/40 transition-all cursor-pointer ${isExpanded ? "bg-slate-800/10 border-l-2 border-amber-500" : ""}`}
+                              >
+                                <td className="p-3 font-mono text-[10px] text-slate-400 whitespace-nowrap">
+                                  <div className="flex items-center gap-1.5 justify-start">
+                                    {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-amber-500" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-500" />}
+                                    <span>{tx.date}</span>
+                                  </div>
+                                </td>
+                                <td className="p-3">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className={`text-[9.5px] px-2 py-0.5 rounded font-bold uppercase tracking-wide inline-block leading-none ${typeColor}`}>
+                                      {typeTagLabel}
+                                    </span>
+                                    <span className="font-semibold text-slate-100">{isArabic ? tx.descriptionAr : tx.descriptionEn}</span>
+                                  </div>
+                                  {tx.customerName && (
+                                    <span className="block text-[10px] text-slate-500 font-medium mt-0.5">
+                                      {isArabic ? "اسم العميل المورد البائع: " : "Selling Customer Name: "}{tx.customerName}
+                                    </span>
+                                  )}
+                                  {tx.dealerId && (
+                                    <span className="block text-[10px] text-slate-500 font-medium mt-0.5">
+                                      {isArabic ? "مسلم لحساب التاجر بالجملة" : "Settled for wholesale dealer"}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="p-3 text-center font-mono font-bold">
+                                  {tx.actualWeight > 0 ? formatWeight(tx.actualWeight, isArabic) : "-"}
+                                </td>
+                                <td className="p-3 text-center font-mono text-amber-500 font-bold">
+                                  {tx.equivalentWeight21 > 0 ? formatWeight(tx.equivalentWeight21, isArabic) : "-"}
+                                </td>
+                                <td className="p-3 text-center font-mono text-slate-400">
+                                  {tx.detectedKarat > 0 ? tx.detectedKarat : "-"}
+                                </td>
+                                <td className="p-3 text-center whitespace-nowrap font-mono font-bold">
+                                  {hasEgpDelta ? (
+                                    <span className={tx.cashAmount >= 0 ? "text-emerald-400" : "text-rose-450"}>
+                                      {tx.cashAmount >= 0 ? "+" : ""}{formatCurrency(tx.cashAmount, isArabic)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-500">-</span>
+                                  )}
+                                </td>
+                                <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      showConfirm(dictionary.deleteTxAlert, () => {
+                                        onDeleteWorkshopTransaction(tx.id);
+                                      });
+                                    }}
+                                    className="p-1 px-1.5 bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 rounded transition-colors"
+                                    title={isArabic ? "حذف الحركة" : "Delete recorded line"}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </td>
+                              </tr>
+
+                              {/* Expanded Bento-style Complete Details */}
+                              {isExpanded && (
+                                <tr className="bg-slate-950/40 border-b border-dashed border-slate-800">
+                                  <td colSpan={7} className="p-4 text-right text-xs">
+                                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4.5 shadow-inner space-y-4 max-w-4xl mx-auto" dir={isArabic ? "rtl" : "ltr"}>
+                                      {/* Header of Detail */}
+                                      <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                                        <div className="text-right">
+                                          <span className="text-[10px] text-amber-400 font-extrabold uppercase tracking-wide block">
+                                            {isArabic ? "كشف القيود وتفاصيل العملية كاملة" : "Complete Journal Entry Breakdown"}
+                                          </span>
+                                          <h5 className="font-bold text-[13px] text-slate-200 mt-0.5 font-serif">
+                                            {isArabic ? tx.descriptionAr : tx.descriptionEn}
+                                          </h5>
+                                        </div>
+                                        <div className="text-left font-mono text-[10px] text-slate-550 bg-slate-950 px-2 py-1 rounded">
+                                          ID: {tx.id}
+                                        </div>
+                                      </div>
+
+                                      {/* Specs Grid */}
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-right">
+                                        {/* Golden Details Card */}
+                                        <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-850 space-y-2">
+                                          <div className="text-[10px] text-slate-400 font-bold border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                                            <Scale className="w-3.5 h-3.5 text-amber-500" />
+                                            <span>{isArabic ? "مواصفات تصفية الذهب" : "Gold Liquidation Weight"}</span>
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-slate-350">
+                                            <span>{isArabic ? "الوزن الفعلي:" : "Actual Weight:"}</span>
+                                            <span className="text-left font-mono font-bold text-white">{formatWeight(tx.actualWeight ?? 0, isArabic)}</span>
+                                            
+                                            <span>{isArabic ? "العيار / الششنة:" : "Karat / Fineness:"}</span>
+                                            <span className="text-left font-mono font-bold text-amber-400">{(tx.detectedKarat ?? 0) > 0 ? tx.detectedKarat : "-"}</span>
+                                            
+                                            <span>{isArabic ? "معادل عيار 21:" : "Equiv 21g Weight:"}</span>
+                                            <span className="text-left font-mono font-bold text-amber-505">{formatWeight(tx.equivalentWeight21 ?? 0, isArabic)}</span>
+                                          </div>
+                                        </div>
+
+                                        {/* Financial Details Card */}
+                                        <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-850 space-y-2">
+                                          <div className="text-[10px] text-slate-400 font-bold border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                                            <DollarSign className="w-3.5 h-3.5 text-emerald-450" />
+                                            <span>{isArabic ? "التسعير والتحصيلات المالية" : "Pricing & Settlement"}</span>
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-slate-350">
+                                            <span>{isArabic ? "سعر جرام 21 المتفق:" : "Gram Price 21:"}</span>
+                                            <span className="text-left font-mono font-bold text-white">{(tx.price21 ?? 0) > 0 ? formatCurrency(tx.price21 ?? 0, isArabic) : "-"}</span>
+                                         
+                                            <span>{isArabic ? "قيمة الذهب الإجمالية:" : "Gross Gold Value:"}</span>
+                                            <span className="text-left font-mono font-bold text-white">{(tx.goldValue ?? 0) > 0 ? formatCurrency(tx.goldValue ?? 0, isArabic) : "-"}</span>
+
+                                            <span>{isArabic ? "رسوم التحليل والششنة:" : "Assay Acid fee:"}</span>
+                                            <span className="text-left font-mono font-bold text-rose-400">{(tx.assayFee ?? 0) > 0 ? formatCurrency(tx.assayFee ?? 0, isArabic) : "-"}</span>
+                                          </div>
+                                        </div>
+
+                                        {/* Multi-vault Journal Ledger Impacts */}
+                                        <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-850 space-y-2">
+                                          <div className="text-[10px] text-slate-400 font-bold border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                                            <Layers className="w-3.5 h-3.5 text-blue-400" />
+                                            <span>{isArabic ? "الأثر المحاسبي على الخزائن" : "Double-Entry Ledger Impact"}</span>
+                                          </div>
+                                          <div className="space-y-1.5 text-[10.5px]">
+                                            {/* Workshop Cash */}
+                                            <div className="flex justify-between items-center font-semibold">
+                                              <span className="text-slate-400">{isArabic ? "خزينة كاش الورشة:" : "Workshop Cash Safe:"}</span>
+                                              <span className={`font-mono font-bold ${(tx.cashAmount ?? 0) >= 0 ? "text-emerald-400" : "text-rose-450"}`}>
+                                                {(tx.cashAmount ?? 0) >= 0 ? "+" : ""}{formatCurrency(tx.cashAmount ?? 0, isArabic)}
+                                              </span>
+                                            </div>
+                                            {/* Workshop Gold stock */}
+                                            <div className="flex justify-between items-center font-semibold">
+                                              <span className="text-slate-400">{isArabic ? "صندوق الذهب للورشة:" : "Workshop Gold Vault:"}</span>
+                                              <span className={`font-mono font-bold ${(tx.type === "purchase" || tx.type === "gold_deposit") ? "text-amber-400" : "text-rose-400"}`}>
+                                                {(tx.type === "purchase" || tx.type === "gold_deposit") ? "+" : "-"}{formatWeight(tx.equivalentWeight21 ?? 0, isArabic)} (عيار 21)
+                                              </span>
+                                            </div>
+                                            {/* Main Safe Infiltration */}
+                                            {tx.type === "purchase" && (
+                                              <div className="flex justify-between items-center font-semibold pt-1 border-t border-slate-800">
+                                                <span className="text-blue-400">{isArabic ? "الخزنة الخاصة النقدية (الرئيسية):" : "Main Private Cash Wallet:"}</span>
+                                                <span className="font-mono font-bold text-rose-455">
+                                                  -{formatCurrency(Math.round((tx.equivalentWeight21 ?? 0) * (tx.price21 ?? 0)) - (tx.assayFee ?? 0), isArabic)}
+                                                </span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Explanatory Note */}
+                                      <div className="bg-slate-950 p-2.5 rounded border border-slate-850 flex items-start gap-2 text-[10px] text-slate-400 font-semibold text-right">
+                                        <Info className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                                        <p className="leading-relaxed">
+                                          {isArabic 
+                                            ? `هذه الحركة مقيدة محاسبياً في النظام المالي للشركة. عهدة الذهب تقيد بالوزن الفعلي بدمغات وششنة ${tx.detectedKarat} وترحل معادلة لعيار 21 المعتمد دولياً في المسبك بخصم المسبوكات وبششنة تحاميل الكسر.`
+                                            : `This ledger record is posted within the company's segregated workshop journals. Gold stock represents physical ${tx.detectedKarat} fineness transacted on the standard raw-weight basis parsed into standard equivalent 21k value.`}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
                           );
                         })}
                       </tbody>

@@ -1,5 +1,58 @@
 // Safe global shim to prevent third-party/platform script errors when querying or attaching listeners to iframes whose contentWindow is null or cross-origin.
 (() => {
+  // One-time automatic reset of local storage to zero-out all books and ledgers for the new live session
+  try {
+    const isWiped = localStorage.getItem("pyramids_v2_reset_done_final");
+    if (!isWiped) {
+      const keysToClear = [
+        "pyramids_dealers",
+        "pyramids_dealer_statements",
+        "pyramids_purchases",
+        "pyramids_sales",
+        "pyramids_expenses",
+        "pyramids_wallet",
+        "pyramids_assay_logs",
+        "pyramids_workshops",
+        "pyramids_workshop_transactions",
+        "pyramids_partners",
+        "pyramids_corporate_capital",
+        "pyramids_company_share_percent",
+        "pyramids_partners_pool_share_percent"
+      ];
+      keysToClear.forEach(k => localStorage.removeItem(k));
+      localStorage.setItem("pyramids_v2_reset_done_final", "true");
+    }
+  } catch (e) {
+    // Suppress potential quota or security blocks inside iframe
+  }
+
+  // Gracefully suppress benign third-party/cross-origin "Script error." triggers
+  window.addEventListener("error", (e) => {
+    if (e.message === "Script error." || e.message?.includes("Script error")) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+
+  window.addEventListener("unhandledrejection", (e) => {
+    // Suppress promise rejections that are outside application core logic (e.g., Sheets API timeouts)
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+
+  const originalOnError = window.onerror;
+  window.onerror = function (message, source, lineno, colno, error) {
+    if (message === "Script error." || (typeof message === "string" && message.includes("Script error"))) {
+      return true;
+    }
+    if (originalOnError) {
+      return originalOnError.apply(this, arguments as any);
+    }
+    return false;
+  };
+})();
+
+(() => {
   try {
     const originalGetter = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, "contentWindow")?.get;
     if (originalGetter) {

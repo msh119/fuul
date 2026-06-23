@@ -12,7 +12,8 @@ import {
   PrivateWalletTransaction,
   AssayLogItem,
   Workshop,
-  WorkshopTransaction
+  WorkshopTransaction,
+  Partner
 } from "./types";
 
 // Convert any karat to millesimal fineness (e.g., 21 -> 875, 24 -> 1000, 18 -> 750)
@@ -286,6 +287,49 @@ export const INITIAL_WORKSHOP_TRANSACTIONS: WorkshopTransaction[] = [
     cashAmount: 0,
     descriptionAr: "إيداع سبيكة خام عيار 24 بوزن 50 جرام في خزنة المسبك الذهبية",
     descriptionEn: "Deposited pure gold 24k bar (50g) into foundry gold vault"
+  }
+];
+
+export const INITIAL_PARTNERS: Partner[] = [
+  {
+    id: "partner_1",
+    nameAr: "الحاج أحمد العسيلي (شريك ذهب ومورّد)",
+    nameEn: "Al-Haj Ahmed El-Assily (Wholesale Partner)",
+    phone: "+201011223344",
+    sharePercent: 15,
+    capitalContributed: 1500000,
+    contractNotesAr: "اتفاق توريد وتسهيلات بيع جملة بالذهب الكسر الششنة وحساب بالوزن العيني",
+    contractNotesEn: "Wholesale facility and scrap gold weight supply custom agreement",
+    transactions: [
+      {
+        id: "ptx_1_1",
+        date: "2026-05-01",
+        type: "capital_inject",
+        amount: 1500000,
+        descriptionAr: "ضخ رأس مال تأسيسي بدفتر الشركاء الموحد للذهب",
+        descriptionEn: "Initial capital injection registered in partners safe book"
+      }
+    ]
+  },
+  {
+    id: "partner_2",
+    nameAr: "المهندس شريف منصور (ممول استثماري عيني)",
+    nameEn: "Eng. Sherif Mansour (Investment Financer)",
+    phone: "+201144556677",
+    sharePercent: 10,
+    capitalContributed: 1000000,
+    contractNotesAr: "تمويل كاش بالجنيه المصري لدعم سيولة شراء الذهب المستعمل والمشغولات وتصفية ربع سنوية",
+    contractNotesEn: "Cash liquidity injection for raw gold acquisitions with quarterly settlements",
+    transactions: [
+      {
+        id: "ptx_2_1",
+        date: "2026-05-15",
+        type: "capital_inject",
+        amount: 1000000,
+        descriptionAr: "إيداع كاش تمويلي لدعم المشتريات والسيولة",
+        descriptionEn: "Liquidity development support cash deposit"
+      }
+    ]
   }
 ];
 
