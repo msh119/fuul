@@ -1,57 +1,64 @@
-// Safe global shim to prevent third-party/platform script errors when querying or attaching listeners to iframes whose contentWindow is null or cross-origin.
+// Catch and suppress cross-origin / TradingView "Script error." errors that bubble up and trigger system-internal report logs.
 (() => {
-  // One-time automatic reset of local storage to zero-out all books and ledgers for the new live session
-  try {
-    const isWiped = localStorage.getItem("pyramids_v2_reset_done_final");
-    if (!isWiped) {
-      const keysToClear = [
-        "pyramids_dealers",
-        "pyramids_dealer_statements",
-        "pyramids_purchases",
-        "pyramids_sales",
-        "pyramids_expenses",
-        "pyramids_wallet",
-        "pyramids_assay_logs",
-        "pyramids_workshops",
-        "pyramids_workshop_transactions",
-        "pyramids_partners",
-        "pyramids_corporate_capital",
-        "pyramids_company_share_percent",
-        "pyramids_partners_pool_share_percent"
-      ];
-      keysToClear.forEach(k => localStorage.removeItem(k));
-      localStorage.setItem("pyramids_v2_reset_done_final", "true");
-    }
-  } catch (e) {
-    // Suppress potential quota or security blocks inside iframe
-  }
+  const isIgnorableError = (msg: string, src: string) => {
+    const message = String(msg || "").toLowerCase();
+    const source = String(src || "").toLowerCase();
+    return (
+      message.includes("script error") ||
+      message.includes("tradingview") ||
+      message.includes("widget") ||
+      source.includes("tradingview") ||
+      source.includes("s3.tradingview.com") ||
+      source.includes("s.tradingview.com")
+    );
+  };
 
-  // Gracefully suppress benign third-party/cross-origin "Script error." triggers
-  window.addEventListener("error", (e) => {
-    if (e.message === "Script error." || e.message?.includes("Script error")) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }, true);
-
-  window.addEventListener("unhandledrejection", (e) => {
-    // Suppress promise rejections that are outside application core logic (e.g., Sheets API timeouts)
-    e.preventDefault();
-    e.stopPropagation();
-  }, true);
-
+  // Intercept via window.onerror
   const originalOnError = window.onerror;
   window.onerror = function (message, source, lineno, colno, error) {
-    if (message === "Script error." || (typeof message === "string" && message.includes("Script error"))) {
-      return true;
+    if (isIgnorableError(String(message), String(source))) {
+      console.warn("Suppressed external / TradingView cross-origin script error:", message, source);
+      return true; // Prevents the firing of the default event handler and stops bubbling/reporting
     }
     if (originalOnError) {
       return originalOnError.apply(this, arguments as any);
     }
     return false;
   };
+
+  // Intercept via error event listener (capturing phase)
+  window.addEventListener(
+    "error",
+    (event) => {
+      const msg = event.message || "";
+      const src = event.filename || "";
+      if (isIgnorableError(msg, src)) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        console.warn("Suppressed cross-origin error event:", msg, src);
+      }
+    },
+    { capture: true }
+  );
+
+  // Intercept unhandled promise rejections (capturing phase)
+  window.addEventListener(
+    "unhandledrejection",
+    (event) => {
+      const reason = String(event.reason?.message || event.reason || "");
+      if (isIgnorableError(reason, "")) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        console.warn("Suppressed unhandled promise rejection:", reason);
+      }
+    },
+    { capture: true }
+  );
 })();
 
+// Safe global shim to prevent third-party/platform script errors when querying or attaching listeners to iframes whose contentWindow is null or cross-origin.
 (() => {
   try {
     const originalGetter = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, "contentWindow")?.get;
