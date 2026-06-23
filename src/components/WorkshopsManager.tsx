@@ -242,9 +242,14 @@ export default function WorkshopsManager({
       const millesimal = getMillesimalKarat(detectedKaratNum);
       equivalentWeight = Number(((millesimal / 875) * actualWeightLocal).toFixed(3));
       
-      if (!dAr) dAr = adjustDirection === "deposit" ? `إيداع ذهب عيار ${adjustKarat} بوزن ${actualWeightLocal}g عيناً` : `سحب ذهب عيار ${adjustKarat} بوزن ${actualWeightLocal}g عيناً`;
-      if (!dEn) dEn = adjustDirection === "deposit" ? `Manual gold deposit (${adjustKarat}K) weight ${actualWeightLocal}g` : `Manual gold withdrawal (${adjustKarat}K) weight ${actualWeightLocal}g`;
+      const parsedKaratText = adjustKarat;
+      if (!dAr) dAr = adjustDirection === "deposit" ? `إيداع ذهب عيار ${parsedKaratText} بوزن ${actualWeightLocal}g عيناً` : `سحب ذهب عيار ${parsedKaratText} بوزن ${actualWeightLocal}g عيناً`;
+      if (!dEn) dEn = adjustDirection === "deposit" ? `Manual gold deposit (${parsedKaratText}) weight ${actualWeightLocal}g` : `Manual gold withdrawal (${parsedKaratText}) weight ${actualWeightLocal}g`;
     }
+
+    const finalKaratForTx = adjustType === "gold" 
+      ? (Number(adjustKarat) || 875)
+      : 0;
 
     const newTx: WorkshopTransaction = {
       id: "wst_" + Date.now(),
@@ -254,7 +259,7 @@ export default function WorkshopsManager({
         ? (adjustDirection === "deposit" ? "cash_deposit" : "cash_withdrawal")
         : (adjustDirection === "deposit" ? "gold_deposit" : "gold_withdrawal"),
       actualWeight: actualWeightLocal,
-      detectedKarat: adjustType === "gold" ? Number(adjustKarat) : 0,
+      detectedKarat: finalKaratForTx,
       equivalentWeight21: equivalentWeight,
       price21: 0,
       goldValue: 0,
@@ -269,6 +274,7 @@ export default function WorkshopsManager({
     
     // reset form
     setAdjustAmount("");
+    setAdjustKarat("21");
     setAdjustDescAr("");
     setAdjustDescEn("");
     showAlert(isArabic ? "تم قيد حركة رصيد الخزينة بنجاح!" : "Special safe transactions successfully logged!");
@@ -296,6 +302,9 @@ export default function WorkshopsManager({
     // Net cash leaving workshop safe: Gold value minus acid fee
     const netPayoutCash = grossGoldValue - assayFeeNum;
 
+    const parsedKaratText = pKarat;
+    const finalKaratForTx = karatNum;
+
     const newTx: WorkshopTransaction = {
       id: "wst_p_" + Date.now(),
       workshopId: selectedWorkshopId,
@@ -303,15 +312,15 @@ export default function WorkshopsManager({
       type: "purchase",
       customerName: custName,
       actualWeight: weightNum,
-      detectedKarat: karatNum,
+      detectedKarat: finalKaratForTx,
       equivalentWeight21: computedEquiv21,
       price21: price21Num,
       goldValue: grossGoldValue,
       assayFee: assayFeeNum,
       brokerFee: 0,
       cashAmount: -netPayoutCash, // negative EGP leaves workshop safe
-      descriptionAr: `شراء ذهب عيار ${karatNum} وزن ${weightNum}g من العميل (${custName}) برسم ششنة ${assayFeeNum} ج.م`,
-      descriptionEn: `Workshop gold buy (${karatNum}K) weight ${weightNum}g from ${custName} (Acid Fee: ${assayFeeNum} EGP)`,
+      descriptionAr: `شراء ذهب عيار ${parsedKaratText} وزن ${weightNum}g من العميل (${custName}) برسم ششنة ${assayFeeNum} ج.م`,
+      descriptionEn: `Workshop gold buy (${parsedKaratText}) weight ${weightNum}g from ${custName} (Acid Fee: ${assayFeeNum} EGP)`,
     };
 
     onAddWorkshopTransaction(newTx);
@@ -319,6 +328,7 @@ export default function WorkshopsManager({
     // reset Form
     setCustName("");
     setPWeight("");
+    setPKarat("875");
     showAlert(isArabic ? "تم قيد فاتورة المشتريات وتخفيض كاش الورشة وإضافة وزن الذهب لعهدتها بسلام." : "Workshop purchase coupon registered successfully!");
   };
 
@@ -345,6 +355,9 @@ export default function WorkshopsManager({
     const dNameAr = dObj ? dObj.nameAr : "التاجر";
     const dNameEn = dObj ? dObj.nameEn : "Dealer";
 
+    const parsedKaratText = sKarat;
+    const finalKaratForTx = karatNum;
+
     const newTx: WorkshopTransaction = {
       id: "wst_s_" + Date.now(),
       workshopId: selectedWorkshopId,
@@ -352,20 +365,21 @@ export default function WorkshopsManager({
       type: "sale",
       dealerId: sDealerId,
       actualWeight: weightNum,
-      detectedKarat: karatNum,
+      detectedKarat: finalKaratForTx,
       equivalentWeight21: computedEquiv21,
       price21: price21Num,
       goldValue: grossValue,
       assayFee: 0,
       brokerFee: 0,
       cashAmount: grossValue, // Sale proceeds go into the workshop financial safe
-      descriptionAr: `بيع ذهب الورشة عوارض عيار ${karatNum} بوزن ${weightNum}g للتاجر (${dNameAr}) للتحصيل النقدي`,
-      descriptionEn: `Sold workshop gold stock (${karatNum}K) weight ${weightNum}g to ${dNameEn}`,
+      descriptionAr: `بيع ذهب الورشة عوارض عيار ${parsedKaratText} بوزن ${weightNum}g للتاجر (${dNameAr}) للتحصيل النقدي`,
+      descriptionEn: `Sold workshop gold stock (${parsedKaratText}) weight ${weightNum}g to ${dNameEn}`,
     };
 
     onAddWorkshopTransaction(newTx);
 
     setSWeight("");
+    setSKarat("875");
     showAlert(isArabic ? "تم تسجيل تسوية مبيعات عهدة الورشة للتاجر وتزويد الخزنة المالية بالقيمة النقدية!" : "Workshop gold store stock sale successfully recorded!");
   };
 
@@ -775,6 +789,8 @@ export default function WorkshopsManager({
                       )}
                     </div>
 
+
+
                     <div>
                       <label className="block mb-1 text-slate-405">{isArabic ? "ملاحظات الحركة (بالعربية)" : "Memo (Arabic)"}</label>
                       <input
@@ -806,7 +822,7 @@ export default function WorkshopsManager({
                   </form>
                 </div>
 
-                {/* WORKSHOP SPECIFIC PURCHASE: CLIENT FORWARDED BY CONTRAC */}
+                {/* WORKSHOP SPECIFIC PURCHASE: CLIENT FORWARDED BY CONTRACT */}
                 <div className="bg-slate-900 border border-slate-850 p-5 rounded-2xl shadow-md">
                   <h3 className="text-xs font-bold text-emerald-400 mb-4 flex items-center gap-1.5">
                     <ArrowDownCircle className="w-4 h-4" />
@@ -829,7 +845,7 @@ export default function WorkshopsManager({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                       <div>
                         <label className="block mb-1 text-slate-400">{dictionary.weightLabel}</label>
                         <input
@@ -844,7 +860,7 @@ export default function WorkshopsManager({
                       </div>
 
                       <div>
-                        <label className="block mb-1 text-slate-450">{dictionary.karatLabel}</label>
+                        <label className="block mb-1 text-slate-455">{dictionary.karatLabel}</label>
                         <input
                           type="number"
                           required
@@ -856,7 +872,7 @@ export default function WorkshopsManager({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block mb-1 text-slate-400">{dictionary.price21Label}</label>
                         <input
@@ -872,36 +888,45 @@ export default function WorkshopsManager({
                         <label className="block mb-1 text-slate-400">{dictionary.assayFeeLabel}</label>
                         <input
                           type="number"
+                          required
                           value={pAssayFee}
                           onChange={(e) => setPAssayFee(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white text-left font-mono outline-none"
+                          className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white text-left font-mono outline-none focus:ring-1 focus:ring-emerald-500"
                         />
                       </div>
                     </div>
 
                     {/* LIVE CALCULATION AREA */}
-                    {pWeight && Number(pWeight) > 0 && (
-                      <div className="bg-slate-950 border border-slate-850 rounded-lg p-3 text-[11px] font-sans text-slate-400 space-y-1">
-                        <div className="flex justify-between">
-                          <span>{isArabic ? "الوزن المعادل (عيار 21):" : "Karat 21 equivalent weight:"}</span>
-                          <span className="font-bold text-amber-450 font-mono">
-                            {formatWeight(calculateEquivalentWeight(Number(pWeight), Number(pKarat)), isArabic)}
-                          </span>
+
+
+                    {pWeight && Number(pWeight) > 0 && (() => {
+                      const liveKarat = Number(pKarat);
+                      const equivWeight = calculateEquivalentWeight(Number(pWeight), liveKarat);
+                      const grossVal = Math.round(equivWeight * Number(pPrice21));
+                      const netVal = grossVal - Number(pAssayFee);
+                      return (
+                        <div className="bg-slate-950 border border-slate-850 rounded-lg p-3 text-[11px] font-sans text-slate-400 space-y-1">
+                          <div className="flex justify-between">
+                            <span>{isArabic ? "الوزن المعادل (عيار 21):" : "Karat 21 equivalent weight:"}</span>
+                            <span className="font-bold text-amber-450 font-mono">
+                              {formatWeight(equivWeight, isArabic)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>{isArabic ? "قيمة الذهب الإجمالية:" : "Gross Gold payout:"}</span>
+                            <span className="font-bold text-white font-mono">
+                              {formatCurrency(grossVal, isArabic)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between pt-1 border-t border-dashed border-slate-800 text-[10px] text-emerald-400">
+                            <span>{isArabic ? "الصافي من صندوق الورشة (EGP):" : "Net leave workshop asset:"}</span>
+                            <span className="font-bold font-mono">
+                              {formatCurrency(netVal, isArabic)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span>{isArabic ? "قيمة الذهب الإجمالية:" : "Gross Gold payout:"}</span>
-                          <span className="font-bold text-white font-mono">
-                            {formatCurrency(Math.round(calculateEquivalentWeight(Number(pWeight), Number(pKarat)) * Number(pPrice21)), isArabic)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between pt-1 border-t border-dashed border-slate-800 text-[10px] text-emerald-400">
-                          <span>{isArabic ? "الصافي من صندوق الورشة (EGP):" : "Net leave workshop asset:"}</span>
-                          <span className="font-bold font-mono">
-                            {formatCurrency(Math.round(calculateEquivalentWeight(Number(pWeight), Number(pKarat)) * Number(pPrice21)) - Number(pAssayFee), isArabic)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     <button
                       type="submit"
@@ -916,13 +941,13 @@ export default function WorkshopsManager({
 
               {/* SELLING WORKSHOP HELD GOLD BACK TO MARKET WHOLESALE DEALERS */}
               <div className="bg-slate-900 border border-slate-850 p-5 rounded-2xl shadow-md">
-                <h3 className="text-xs font-bold text-rose-450 mb-4 flex items-center gap-1.5">
+                <h3 className="text-xs font-bold text-rose-455 mb-4 flex items-center gap-1.5">
                   <ArrowUpCircle className="w-4 h-4" />
                   <span>{dictionary.sFormTitle}</span>
                 </h3>
 
                 <form onSubmit={handleRegisterWorkshopSale} className="space-y-4 text-xs font-semibold text-slate-300">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block mb-1 text-slate-400">{dictionary.dealerLabel}</label>
                       <select
@@ -938,37 +963,35 @@ export default function WorkshopsManager({
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3.5">
-                      <div>
-                        <label className="block mb-1 text-slate-400">{dictionary.weightLabel}</label>
-                        <input
-                          type="number"
-                          step="0.001"
-                          required
-                          value={sWeight}
-                          onChange={(e) => setSWeight(e.target.value)}
-                          placeholder="0.000"
-                          className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white text-left font-mono outline-none focus:ring-1 focus:ring-rose-500"
-                        />
-                      </div>
+                    <div>
+                      <label className="block mb-1 text-slate-400">{dictionary.weightLabel}</label>
+                      <input
+                        type="number"
+                        step="0.001"
+                        required
+                        value={sWeight}
+                        onChange={(e) => setSWeight(e.target.value)}
+                        placeholder="0.000"
+                        className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white text-left font-mono outline-none focus:ring-1 focus:ring-rose-500"
+                      />
+                    </div>
 
-                      <div>
-                        <label className="block mb-1 text-slate-450">{dictionary.karatLabel}</label>
-                        <input
-                          type="number"
-                          required
-                          value={sKarat}
-                          onChange={(e) => setSKarat(e.target.value)}
-                          placeholder={dictionary.karatPlaceholder}
-                          className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white text-left font-mono outline-none focus:ring-1 focus:ring-rose-500"
-                        />
-                      </div>
+                    <div>
+                      <label className="block mb-1 text-slate-455">{dictionary.karatLabel}</label>
+                      <input
+                        type="number"
+                        required
+                        value={sKarat}
+                        onChange={(e) => setSKarat(e.target.value)}
+                        placeholder={dictionary.karatPlaceholder}
+                        className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white text-left font-mono outline-none focus:ring-1 focus:ring-rose-500"
+                      />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block mb-1 text-slate-400">{dictionary.price21Label}</label>
+                      <label className="block mb-1 text-slate-405">{dictionary.price21Label}</label>
                       <input
                         type="number"
                         required
@@ -979,22 +1002,27 @@ export default function WorkshopsManager({
                     </div>
 
                     {/* LIVE SALE PREVIEWS */}
-                    {sWeight && Number(sWeight) > 0 && (
-                      <div className="bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-[11px] font-sans text-slate-400 flex flex-col justify-center">
-                        <div className="flex justify-between">
-                          <span>{isArabic ? "المكافئ ٢١ للتخفيض:" : "Equiv 21 Weight deducted:"}</span>
-                          <span className="font-bold text-orange-400 font-mono">
-                            -{formatWeight(calculateEquivalentWeight(Number(sWeight), Number(sKarat)), isArabic)}
-                          </span>
+                    {sWeight && Number(sWeight) > 0 && (() => {
+                      const liveKarat = Number(sKarat);
+                      const equivWeight = calculateEquivalentWeight(Number(sWeight), liveKarat);
+                      const grossVal = Math.round(equivWeight * Number(sPrice21));
+                      return (
+                        <div className="bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-[11px] font-sans text-slate-400 flex flex-col justify-center w-full">
+                          <div className="flex justify-between">
+                            <span>{isArabic ? "المكافئ ٢١ للتخفيض:" : "Equiv 21 Weight deducted:"}</span>
+                            <span className="font-bold text-orange-400 font-mono">
+                              -{formatWeight(equivWeight, isArabic)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between mt-1 text-[11px] text-emerald-400">
+                            <span>{isArabic ? "قيمة كاش مضافة لخزينة الورشة:" : "Incoming cash back to foundry safe:"}</span>
+                            <span className="font-bold font-mono">
+                              +{formatCurrency(grossVal, isArabic)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex justify-between mt-1 text-[11px] text-emerald-400">
-                          <span>{isArabic ? "قيمة كاش مضافة لخزينة الورشة:" : "Incoming cash back to foundry safe:"}</span>
-                          <span className="font-bold font-mono">
-                            +{formatCurrency(Math.round(calculateEquivalentWeight(Number(sWeight), Number(sKarat)) * Number(sPrice21)), isArabic)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
 
                   <button

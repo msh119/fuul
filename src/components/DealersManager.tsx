@@ -80,13 +80,14 @@ export default function DealersManager({
     let finalWeight = Number(adjWeight || 0);
     let finalCash = Number(adjCash || 0);
     const karat = Number(adjKarat || 875);
+    const finalKarat = karat;
     const price = Number(adjPrice || 0);
 
     let calculatedEquiv = 0;
     let goldValue = 0;
 
     if (adjType === "gold_sold_to_dealer" || adjType === "gold_received_from_dealer") {
-      calculatedEquiv = calculateEquivalentWeight(finalWeight, karat);
+      calculatedEquiv = calculateEquivalentWeight(finalWeight, finalKarat);
       goldValue = Math.round(calculatedEquiv * price);
     }
 
@@ -111,14 +112,14 @@ export default function DealersManager({
     const defaultDescAr = 
       adjType === "loan_received" ? `استلام نقدية / سلفة من التاجر بقيمة ${finalCash} ج.م` :
       adjType === "loan_paid_cash" ? `مديونية مسجلة على التاجر بقيمة ${finalCash} ج.م` :
-      adjType === "gold_sold_to_dealer" ? `تسليم مبيع ذهب عيار ${karat} بوزن ${finalWeight} جرام` :
-      `استلام ذهب عيار ${karat} بوزن ${finalWeight} جرام من التاجر`;
+      adjType === "gold_sold_to_dealer" ? `تسليم مبيع ذهب عيار ${finalKarat} بوزن ${finalWeight} جرام` :
+      `استلام ذهب عيار ${finalKarat} بوزن ${finalWeight} جرام من التاجر`;
 
     const defaultDescEn = 
       adjType === "loan_received" ? `Received cash loan of ${finalCash} EGP` :
       adjType === "loan_paid_cash" ? `Registered debt/payment to dealer of ${finalCash} EGP` :
-      adjType === "gold_sold_to_dealer" ? `Delivered gold of ${karat} karat weight ${finalWeight}g` :
-      `Received gold of ${karat} karat weight ${finalWeight}g from dealer`;
+      adjType === "gold_sold_to_dealer" ? `Delivered gold of ${finalKarat} karat weight ${finalWeight}g` :
+      `Received gold of ${finalKarat} karat weight ${finalWeight}g from dealer`;
 
     // Add identifier to keep statementItems linked to this dealer
     const newItem: DealerStatementItem = {
@@ -129,7 +130,7 @@ export default function DealersManager({
       descriptionEn: descEn || defaultDescEn,
       cashAmount: signedCash,
       actualWeight: signedActualWeight,
-      karatValue: karat,
+      karatValue: finalKarat,
       equivalentWeight21: signedEquivWeight,
       price21: price,
       goldValue: goldValue,
@@ -503,6 +504,7 @@ export default function DealersManager({
                           className="w-full bg-slate-800 border border-slate-705 rounded p-1.5 text-white font-mono text-left focus:ring-1 focus:ring-amber-500 outline-none"
                         />
                       </div>
+
                       <div>
                         <label className="block mb-1">{isArabic ? "سعر جرام 21 المتفق عليه *" : "Agreed 21 price *"}</label>
                         <input
@@ -613,7 +615,13 @@ export default function DealersManager({
 
                             {/* Karat Code */}
                             <td className="p-3 text-center font-mono text-slate-400">
-                              {item.karatValue > 0 ? item.karatValue : "-"}
+                              {item.karatValue > 0 ? (
+                                <div>
+                                  <div>{item.karatValue}</div>
+                                </div>
+                              ) : (
+                                "-"
+                              )}
                             </td>
 
                             {/* Equivalent target weight */}

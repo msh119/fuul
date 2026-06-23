@@ -805,12 +805,33 @@ export default function App() {
     const updated = [newTx, ...workshopTransactions];
     setWorkshopTransactions(updated);
     saveToLocalStorage("pyramids_workshop_transactions", updated);
+
+    // Double-entry to main cash safe: deduct the workshop purchase payout
+    if (newTx.type === "purchase") {
+      const paymentTx: PrivateWalletTransaction = {
+        id: `w_ws_p_${newTx.id}`,
+        date: newTx.date,
+        type: "purchase_payment",
+        descriptionAr: `[شراء للورشة] سداد شراء عيار ${newTx.detectedKarat} وزن ${newTx.actualWeight}g من ${newTx.customerName} لحساب الورشة/المسبك`,
+        descriptionEn: `[Workshop Buy] Paid ${newTx.customerName} for gold buy (${newTx.detectedKarat}k) weight ${newTx.actualWeight}g for workshop use`,
+        amount: newTx.cashAmount // Which is already a negative value representing payout
+      };
+
+      const updatedWallet = [paymentTx, ...walletTransactions];
+      setWalletTransactions(updatedWallet);
+      saveToLocalStorage("pyramids_wallet", updatedWallet);
+    }
   };
 
   const handleDeleteWorkshopTransaction = (id: string) => {
     const updated = workshopTransactions.filter((tx) => tx.id !== id);
     setWorkshopTransactions(updated);
     saveToLocalStorage("pyramids_workshop_transactions", updated);
+
+    // Reverse payment deduction from main cash safe if deleting a workshop purchase
+    const updatedWallet = walletTransactions.filter((w) => w.id !== `w_ws_p_${id}`);
+    setWalletTransactions(updatedWallet);
+    saveToLocalStorage("pyramids_wallet", updatedWallet);
   };
 
   // 8. DATABASE HARD RESET / CLEARALL

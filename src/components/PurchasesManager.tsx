@@ -44,7 +44,7 @@ export default function PurchasesManager({
   isAdminMode,
   onRequestAdminUnlock,
 }: PurchasesManagerProps) {
-  // Model state variables
+  // State variables
   const [customerName, setCustomerName] = useState("");
   const [weight, setWeight] = useState("");
   const [karatValue, setKaratValue] = useState("842"); // Default initial state to match mockup (842 Karat)
@@ -506,7 +506,9 @@ export default function PurchasesManager({
                           <td className="p-3 font-mono text-[10px] whitespace-nowrap text-slate-400">{p.date}</td>
                           <td className="p-3 font-bold text-slate-100 whitespace-nowrap">{p.customerName}</td>
                           <td className="p-3 text-center font-mono font-bold">{p.actualWeight.toFixed(2)}g</td>
-                          <td className="p-3 text-center font-mono text-slate-400">{p.detectedKarat}</td>
+                          <td className="p-3 text-center font-mono text-slate-400">
+                            <div>{p.detectedKarat}</div>
+                          </td>
                           <td className="p-3 text-center font-mono text-amber-400 font-bold">{p.equivalentWeight21.toFixed(3)}g</td>
                           <td className="p-3 text-center font-mono text-slate-400">{formatCurrency(p.price21, isArabic)}</td>
                           <td className="p-3 text-center font-mono text-amber-500 font-black">{formatCurrency(p.goldValue, isArabic)}</td>

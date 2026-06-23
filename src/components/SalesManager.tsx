@@ -441,7 +441,9 @@ export default function SalesManager({
                       <td className="p-3 font-mono text-[10px] text-slate-400 whitespace-nowrap">{s.date}</td>
                       <td className="p-3 font-bold text-slate-100 whitespace-nowrap">{isArabic ? dl?.nameAr : dl?.nameEn}</td>
                       <td className="p-3 text-center font-mono font-bold">{s.actualWeight.toFixed(2)}g</td>
-                      <td className="p-3 text-center font-mono text-slate-400">{s.detectedKarat}</td>
+                      <td className="p-3 text-center font-mono text-slate-400">
+                        <div>{s.detectedKarat}</div>
+                      </td>
                       <td className="p-3 text-center font-mono text-amber-500 font-bold">{s.equivalentWeight21.toFixed(3)}g</td>
                       <td className="p-3 text-center font-mono text-slate-400">{formatCurrency(s.price21, isArabic)}</td>
                       <td className="p-3 text-center font-mono text-emerald-400 font-black">{formatCurrency(s.goldValue, isArabic)}</td>
