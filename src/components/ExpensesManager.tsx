@@ -474,6 +474,20 @@ export default function ExpensesManager({
                       </tr>
                     ))}
                   </tbody>
+                  {(() => {
+                    const totalAmount = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+                    return (
+                      <tfoot className="bg-slate-950 font-bold text-slate-200 border-t border-slate-800">
+                        <tr>
+                          <td className="p-2.5 font-sans">{isArabic ? "المجموع" : "Total"}</td>
+                          <td className="p-2.5 font-sans">({filteredExpenses.length} {isArabic ? "حركات" : "entries"})</td>
+                          <td className="p-2.5"></td>
+                          <td className="p-2.5 text-center font-mono text-rose-400">{formatCurrency(totalAmount, isArabic)}</td>
+                          <td className="p-2.5"></td>
+                        </tr>
+                      </tfoot>
+                    );
+                  })()}
                 </table>
               )}
             </div>
@@ -554,6 +568,22 @@ export default function ExpensesManager({
                         </tr>
                       ))}
                     </tbody>
+                    {(() => {
+                      const totalWeight = filteredAssayLogs.reduce((sum, log) => sum + log.actualWeight, 0);
+                      const totalFees = filteredAssayLogs.reduce((sum, log) => sum + (log.assayFeeCollected || log.assayFee || 0), 0);
+                      return (
+                        <tfoot className="bg-slate-950 font-bold text-slate-200 border-t border-slate-800">
+                          <tr>
+                            <td className="p-2.5 font-sans">{isArabic ? "المجموع" : "Total"}</td>
+                            <td className="p-2.5 font-sans">({filteredAssayLogs.length} {isArabic ? "حركات" : "entries"})</td>
+                            <td className="p-2.5 text-center font-mono">{totalWeight.toFixed(2)}g</td>
+                            <td className="p-2.5 text-center font-mono"></td>
+                            <td className="p-2.5 text-center font-mono text-emerald-450">+{formatCurrency(totalFees, isArabic)}</td>
+                            <td className="p-2.5"></td>
+                          </tr>
+                        </tfoot>
+                      );
+                    })()}
                   </table>
                 )}
               </div>

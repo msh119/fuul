@@ -1175,6 +1175,28 @@ export default function WorkshopsManager({
                           );
                         })}
                       </tbody>
+                      {(() => {
+                        const totalActual = filteredTransactions.reduce((acc, tx) => acc + (tx.actualWeight || 0), 0);
+                        const totalEquiv = filteredTransactions.reduce((acc, tx) => acc + (tx.equivalentWeight21 || 0), 0);
+                        const totalCash = filteredTransactions.reduce((acc, tx) => acc + (tx.cashAmount || 0), 0);
+                        return (
+                          <tfoot className="bg-slate-950 font-bold text-slate-200 border-t border-slate-800 text-center">
+                            <tr>
+                              <td className="p-3 font-sans text-right">{isArabic ? "إجمالي الحركات" : "Total of Transactions"}</td>
+                              <td className="p-3 font-sans text-right">({filteredTransactions.length} {isArabic ? "حركات" : "lines"})</td>
+                              <td className="p-3 font-mono text-white">{totalActual > 0 ? formatWeight(totalActual, isArabic) : "-"}</td>
+                              <td className="p-3 font-mono text-amber-500 font-bold">{totalEquiv > 0 ? formatWeight(totalEquiv, isArabic) : "-"}</td>
+                              <td className="p-3 font-mono text-slate-400">-</td>
+                              <td className="p-3 font-mono font-bold whitespace-nowrap">
+                                <span className={totalCash >= 0 ? "text-emerald-400" : "text-rose-450"}>
+                                  {totalCash >= 0 ? "+" : ""}{formatCurrency(totalCash, isArabic)}
+                                </span>
+                              </td>
+                              <td className="p-3"></td>
+                            </tr>
+                          </tfoot>
+                        );
+                      })()}
                     </table>
                   )}
                 </div>

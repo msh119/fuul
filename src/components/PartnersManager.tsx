@@ -195,8 +195,23 @@ export default function PartnersManager({
   };
 
   // INTERACTIVE RE-COMPUTATIONS (Same netProfit formula as Dashboard overview)
-  const totalSalesGoldValue = sales.reduce((acc, s) => acc + s.goldValue, 0);
-  const totalPurchasesGoldValue = purchases.reduce((acc, p) => acc + p.goldValue, 0);
+  const totalPurchasesWeight = purchases.reduce((acc, p) => acc + p.equivalentWeight21, 0);
+  const totalPurchasesValue = purchases.reduce((acc, p) => acc + p.goldValue, 0);
+  
+  // Weighted average cost of 21k gold purchased
+  const averagePurchasePrice21 = totalPurchasesWeight > 0 
+    ? totalPurchasesValue / totalPurchasesWeight 
+    : 3000;
+
+  const totalSalesWeight = sales.reduce((acc, s) => acc + s.equivalentWeight21, 0);
+  const totalSalesValue = sales.reduce((acc, s) => acc + s.goldValue, 0);
+
+  // Cost of Gold Sold (COGS)
+  const costOfGoldSold = totalSalesWeight * averagePurchasePrice21;
+
+  // Realized Gold Trading Profit
+  const goldTradingProfit = totalSalesValue - costOfGoldSold;
+
   const totalAssayRevenues = walletTransactions
     .filter((t) => t.type === "assay_fee_income")
     .reduce((acc, t) => acc + t.amount, 0);
@@ -206,7 +221,7 @@ export default function PartnersManager({
     .reduce((acc, e) => acc + e.amount, 0);
 
   const netBusinessProfit =
-    totalSalesGoldValue - totalPurchasesGoldValue + totalAssayRevenues - totalBrokerFees - totalOverheadExpenses;
+    goldTradingProfit + totalAssayRevenues - totalBrokerFees - totalOverheadExpenses;
 
   // Aggregate Calculations for Partners
   const totalPartnersAllocatedShare = partners.reduce((acc, p) => acc + p.sharePercent, 0);
@@ -1331,6 +1346,45 @@ export default function PartnersManager({
                   </tr>
                 ))}
               </tbody>
+              {(() => {
+                const allTxs = partners.flatMap((p) =>
+                  p.transactions.map((tx) => ({
+                    partnerId: p.id,
+                    ...tx
+                  }))
+                );
+                const totalInjected = allTxs
+                  .filter((tx) => tx.type === "capital_inject")
+                  .reduce((sum, tx) => sum + tx.amount, 0);
+                const totalWithdrawn = allTxs
+                  .filter((tx) => tx.type === "dividend_withdraw")
+                  .reduce((sum, tx) => sum + tx.amount, 0);
+                const netCashDelta = totalInjected - totalWithdrawn;
+                return (
+                  <tfoot className="bg-slate-950 font-bold text-slate-200 border-t border-slate-800 text-center text-[11px]">
+                    <tr>
+                      <td className="p-3 font-sans text-right">{isArabic ? "المجموع الشامل" : "Grand Total"}</td>
+                      <td className="p-3 font-sans text-right">({allTxs.length} {isArabic ? "عملية" : "lines"})</td>
+                      <td className="p-3"></td>
+                      <td className="p-3"></td>
+                      <td className="p-3 text-right">
+                        <span className="text-slate-400">
+                          {isArabic 
+                            ? `تمويل: +${formatCurrency(totalInjected, isArabic)} / سحب: -${formatCurrency(totalWithdrawn, isArabic)}` 
+                            : `Inject: +${formatCurrency(totalInjected, isArabic)} / Drawn: -${formatCurrency(totalWithdrawn, isArabic)}`}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center font-mono">
+                        <span className={netCashDelta >= 0 ? "text-emerald-400" : "text-rose-450"}>
+                          {netCashDelta >= 0 ? "+" : "-"}
+                          {formatCurrency(Math.abs(netCashDelta), isArabic)}
+                        </span>
+                      </td>
+                      <td className="p-3"></td>
+                    </tr>
+                  </tfoot>
+                );
+              })()}
             </table>
           )}
         </div>

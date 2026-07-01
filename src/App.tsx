@@ -39,7 +39,9 @@ import {
   googleSignOut,
   getOrCreateSpreadsheet,
   syncAllLedgersToGoogleSheets,
-  getCachedToken
+  getCachedToken,
+  getFullBackupData,
+  restoreFullBackupData
 } from "./googleSheetsSync";
 
 import {
@@ -974,9 +976,24 @@ export default function App() {
   const absoluteWalletCash = walletTransactions.reduce((acc, t) => acc + t.amount, 0);
   const privateWalletBalance = totalEnterpriseCapital - totalPartnerWithdrawals + absoluteWalletCash;
 
-  // Reactively computed Working Net Business Profit for SystemManual & general metrics
-  const totalSalesGoldValue = sales.reduce((acc, s) => acc + s.goldValue, 0);
-  const totalPurchasesGoldValue = purchases.reduce((acc, p) => acc + p.goldValue, 0);
+  // Reactively computed Working Net Business Profit based on Realized Profit (COGS)
+  const totalPurchasesWeight = purchases.reduce((acc, p) => acc + p.equivalentWeight21, 0);
+  const totalPurchasesValue = purchases.reduce((acc, p) => acc + p.goldValue, 0);
+  
+  // Weighted average cost of 21k gold purchased
+  const averagePurchasePrice21 = totalPurchasesWeight > 0 
+    ? totalPurchasesValue / totalPurchasesWeight 
+    : goldPrices.gold21;
+
+  const totalSalesWeight = sales.reduce((acc, s) => acc + s.equivalentWeight21, 0);
+  const totalSalesValue = sales.reduce((acc, s) => acc + s.goldValue, 0);
+
+  // Cost of Gold Sold (COGS)
+  const costOfGoldSold = totalSalesWeight * averagePurchasePrice21;
+
+  // Realized Gold Trading Profit
+  const goldTradingProfit = totalSalesValue - costOfGoldSold;
+
   const totalAssayRevenues = walletTransactions
     .filter((t) => t.type === "assay_fee_income")
     .reduce((acc, t) => acc + t.amount, 0);
@@ -986,7 +1003,7 @@ export default function App() {
     .reduce((acc, e) => acc + e.amount, 0);
 
   const netBusinessProfit =
-    totalSalesGoldValue - totalPurchasesGoldValue + totalAssayRevenues - totalBrokerFees - totalOverheadExpenses;
+    goldTradingProfit + totalAssayRevenues - totalBrokerFees - totalOverheadExpenses;
 
   return (
     <div
@@ -1440,6 +1457,8 @@ export default function App() {
               dealerStatements={dealerStatements}
               walletTransactions={walletTransactions}
               dealers={dealers}
+              workshops={workshops}
+              workshopTransactions={workshopTransactions}
               isArabic={isArabic}
               onDeletePurchase={handleDeletePurchase}
               onDeleteSale={handleDeleteSale}
@@ -1447,6 +1466,7 @@ export default function App() {
               onDeleteAssayLog={handleDeleteAssayLog}
               onDeleteStatementItem={handleDeleteStatementItem}
               onDeleteWalletTransaction={handleDeleteWalletTransaction}
+              onDeleteWorkshopTransaction={handleDeleteWorkshopTransaction}
               onClearLedger={handleClearAll}
               showConfirm={showConfirm}
             />
@@ -1828,16 +1848,7 @@ export default function App() {
                   <div className="flex gap-2.5 pt-4 text-xs font-bold">
                     <button
                       onClick={() => {
-                        const backupData = {
-                          dealers,
-                          dealerStatements,
-                          purchases,
-                          sales,
-                          expenses,
-                          walletTransactions,
-                          assayLogs,
-                          exportedAt: new Date().toISOString()
-                        };
+                        const backupData = getFullBackupData();
                         const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement("a");
@@ -1867,23 +1878,30 @@ export default function App() {
                           reader.onload = (event) => {
                             try {
                               const parsed = JSON.parse(event.target?.result as string);
-                              if (parsed.dealers && parsed.purchases) {
-                                setDealers(parsed.dealers || []);
-                                setDealerStatements(parsed.dealerStatements || []);
-                                setPurchases(parsed.purchases || []);
-                                setSaleItems(parsed.sales || []);
-                                setExpenses(parsed.expenses || []);
-                                setWalletTransactions(parsed.walletTransactions || []);
-                                setAssayLogs(parsed.assayLogs || []);
-
-                                saveToLocalStorage("pyramids_dealers", parsed.dealers || []);
-                                saveToLocalStorage("pyramids_dealer_statements", parsed.dealerStatements || []);
-                                saveToLocalStorage("pyramids_purchases", parsed.purchases || []);
-                                saveToLocalStorage("pyramids_sales", parsed.sales || []);
-                                saveToLocalStorage("pyramids_expenses", parsed.expenses || []);
-                                saveToLocalStorage("pyramids_wallet", parsed.walletTransactions || []);
-                                saveToLocalStorage("pyramids_assay_logs", parsed.assayLogs || []);
-                                showAlert(isArabic ? "تم استعادة قاعدة بيانات الأهرام بنجاح!" : "Database successfully restored!");
+                              
+                              // First try restoring the full key-value format
+                              let success = restoreFullBackupData(parsed);
+                              
+                              if (!success && parsed.dealers && parsed.purchases) {
+                                // If it's the old subset format, convert it to the full format structure and restore
+                                const fullStructure: any = {
+                                  _backup_app_id: "pyramids_gold",
+                                  pyramids_dealers: parsed.dealers,
+                                  pyramids_dealer_statements: parsed.dealerStatements,
+                                  pyramids_purchases: parsed.purchases,
+                                  pyramids_sales: parsed.sales,
+                                  pyramids_expenses: parsed.expenses,
+                                  pyramids_wallet: parsed.walletTransactions,
+                                  pyramids_assay_logs: parsed.assayLogs
+                                };
+                                success = restoreFullBackupData(fullStructure);
+                              }
+                              
+                              if (success) {
+                                showAlert(isArabic ? "تم استعادة قاعدة بيانات الأهرام بالكامل بنجاح! جاري تحديث التطبيق..." : "All database operations successfully restored! Reloading application...");
+                                setTimeout(() => {
+                                  window.location.reload();
+                                }, 1500);
                               } else {
                                 showAlert(isArabic ? "ملف النسخة الاحتياطية غير سليم!" : "Invalid backup file structure.");
                               }

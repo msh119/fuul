@@ -441,6 +441,69 @@ export default function PurchasesManager({
       {/* SEARCH FILTER BOX & TABLE DATA LIST (RESTRICTED TO ADMIN) */}
       {isAdminMode ? (
         <>
+          {/* TOTALS SUMMARY GRID */}
+          {(() => {
+            const totalActualWeight = filteredPurchases.reduce((sum, p) => sum + p.actualWeight, 0);
+            const totalEquivWeight = filteredPurchases.reduce((sum, p) => sum + p.equivalentWeight21, 0);
+            const totalGoldValue = filteredPurchases.reduce((sum, p) => sum + p.goldValue, 0);
+            const totalAssayFee = filteredPurchases.reduce((sum, p) => sum + p.assayFee, 0);
+            const totalBrokerFee = filteredPurchases.reduce((sum, p) => sum + p.brokerFee, 0);
+            const totalNetPaid = filteredPurchases.reduce((sum, p) => sum + (p.goldValue - p.assayFee), 0);
+
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+                <div className="bg-slate-900 border border-slate-850 rounded-xl p-3 shadow-sm flex flex-col justify-between">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                    {isArabic ? "عدد الفواتير" : "Invoices Count"}
+                  </span>
+                  <span className="text-sm font-mono font-black text-amber-400 mt-1">
+                    {filteredPurchases.length}
+                  </span>
+                </div>
+                <div className="bg-slate-900 border border-slate-850 rounded-xl p-3 shadow-sm flex flex-col justify-between">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                    {isArabic ? "إجمالي الوزن الخام" : "Total Raw Weight"}
+                  </span>
+                  <span className="text-sm font-mono font-black text-white mt-1">
+                    {totalActualWeight.toFixed(2)}g
+                  </span>
+                </div>
+                <div className="bg-slate-900 border border-slate-850 rounded-xl p-3 shadow-sm flex flex-col justify-between">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                    {isArabic ? "إجمالي معادل 21" : "Total Equiv 21g"}
+                  </span>
+                  <span className="text-sm font-mono font-black text-amber-500 mt-1">
+                    {totalEquivWeight.toFixed(3)}g
+                  </span>
+                </div>
+                <div className="bg-slate-900 border border-slate-850 rounded-xl p-3 shadow-sm flex flex-col justify-between">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                    {isArabic ? "إجمالي قيمة الذهب" : "Total Gold Value"}
+                  </span>
+                  <span className="text-sm font-mono font-black text-slate-300 mt-1">
+                    {formatCurrency(totalGoldValue, isArabic)}
+                  </span>
+                </div>
+                <div className="bg-slate-900 border border-slate-850 rounded-xl p-3 shadow-sm flex flex-col justify-between">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                    {isArabic ? "إجمالي رسوم الششنة" : "Total Assay Fees"}
+                  </span>
+                  <span className="text-sm font-mono font-black text-emerald-400 mt-1">
+                    +{formatCurrency(totalAssayFee, isArabic)}
+                  </span>
+                </div>
+                <div className="bg-slate-900 border border-slate-850 rounded-xl p-3 shadow-sm flex flex-col justify-between">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                    {isArabic ? "إجمالي الصافي المدفوع" : "Total Net Paid"}
+                  </span>
+                  <span className="text-sm font-mono font-black text-emerald-400 mt-1">
+                    {formatCurrency(totalNetPaid, isArabic)}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* SEARCH FILTER BOX */}
           <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-md space-y-3">
             <div className="relative">
@@ -535,6 +598,32 @@ export default function PurchasesManager({
                       );
                     })}
                   </tbody>
+                  {(() => {
+                    const totalActualWeight = filteredPurchases.reduce((sum, p) => sum + p.actualWeight, 0);
+                    const totalEquivWeight = filteredPurchases.reduce((sum, p) => sum + p.equivalentWeight21, 0);
+                    const totalGoldValue = filteredPurchases.reduce((sum, p) => sum + p.goldValue, 0);
+                    const totalAssayFee = filteredPurchases.reduce((sum, p) => sum + p.assayFee, 0);
+                    const totalBrokerFee = filteredPurchases.reduce((sum, p) => sum + p.brokerFee, 0);
+                    const totalNetPaid = filteredPurchases.reduce((sum, p) => sum + (p.goldValue - p.assayFee), 0);
+
+                    return (
+                      <tfoot className="bg-slate-950 font-bold text-slate-200 border-t border-slate-800">
+                        <tr>
+                          <td className="p-3 font-sans">{isArabic ? "المجموع" : "Total"}</td>
+                          <td className="p-3 font-sans">({filteredPurchases.length} {isArabic ? "عمليات" : "items"})</td>
+                          <td className="p-3 text-center font-mono">{totalActualWeight.toFixed(2)}g</td>
+                          <td className="p-3 text-center font-mono"></td>
+                          <td className="p-3 text-center font-mono text-amber-400">{totalEquivWeight.toFixed(3)}g</td>
+                          <td className="p-3 text-center font-mono"></td>
+                          <td className="p-3 text-center font-mono text-amber-500">{formatCurrency(totalGoldValue, isArabic)}</td>
+                          <td className="p-3 text-center font-mono text-emerald-400">+{formatCurrency(totalAssayFee, isArabic)}</td>
+                          <td className="p-3 text-center font-mono text-rose-500">-{formatCurrency(totalBrokerFee, isArabic)}</td>
+                          <td className="p-3 text-center font-mono text-emerald-400">{formatCurrency(totalNetPaid, isArabic)}</td>
+                          <td className="p-3 text-center"></td>
+                        </tr>
+                      </tfoot>
+                    );
+                  })()}
                 </table>
               )}
             </div>

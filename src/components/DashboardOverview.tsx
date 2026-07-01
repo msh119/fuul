@@ -220,16 +220,31 @@ export default function DashboardOverview({
   const outstandingDealerGoldWeight = totalGoldDelivered21 - totalGoldReceived21;
 
   // 4. Calculate Net Business Profit
-  // Profit = (Total Sales gold value to dealers) - (Total purchases gold value from customers) + (Assay fees) - (Broker fees) - (Overhead expenses)
-  const totalSalesGoldValue = sales.reduce((acc, s) => acc + s.goldValue, 0);
-  const totalPurchasesGoldValue = purchases.reduce((acc, p) => acc + p.goldValue, 0);
+  // Profit = (Realized Gold Trading Profit) + (Assay fees) - (Broker fees) - (Overhead expenses)
+  const totalPurchasesWeight = purchases.reduce((acc, p) => acc + p.equivalentWeight21, 0);
+  const totalPurchasesValue = purchases.reduce((acc, p) => acc + p.goldValue, 0);
+  
+  // Weighted average cost of 21k gold purchased
+  const averagePurchasePrice21 = totalPurchasesWeight > 0 
+    ? totalPurchasesValue / totalPurchasesWeight 
+    : 3000;
+
+  const totalSalesWeight = sales.reduce((acc, s) => acc + s.equivalentWeight21, 0);
+  const totalSalesValue = sales.reduce((acc, s) => acc + s.goldValue, 0);
+
+  // Cost of Gold Sold (COGS)
+  const costOfGoldSold = totalSalesWeight * averagePurchasePrice21;
+
+  // Realized Gold Trading Profit
+  const goldTradingProfit = totalSalesValue - costOfGoldSold;
+
   const totalBrokerFees = purchases.reduce((acc, p) => acc + p.brokerFee, 0);
   const totalOverheadExpenses = expenses
     .filter((e) => e.category === "overhead")
     .reduce((acc, e) => acc + e.amount, 0);
 
   const netBusinessProfit =
-    totalSalesGoldValue - totalPurchasesGoldValue + totalAssayRevenues - totalBrokerFees - totalOverheadExpenses;
+    goldTradingProfit + totalAssayRevenues - totalBrokerFees - totalOverheadExpenses;
 
   // 5. Total Incoming Gold Actual Weight (إجمالي الوزن الذهب الخام الداخل)
   const totalIncomingActualWeight = purchases.reduce((acc, p) => acc + p.actualWeight, 0) +

@@ -662,6 +662,38 @@ export default function DealersManager({
                         );
                       })}
                     </tbody>
+                    {(() => {
+                      const totalCash = currentItems.reduce((acc, item) => acc + item.cashAmount, 0);
+                      const totalActual = currentItems.reduce((acc, item) => acc + item.actualWeight, 0);
+                      const totalEquiv = currentItems.reduce((acc, item) => acc + item.equivalentWeight21, 0);
+                      const totalGoldVal = currentItems.reduce((acc, item) => acc + (item.goldValue || 0), 0);
+                      return (
+                        <tfoot className="bg-slate-950 font-bold text-slate-200 border-t border-slate-800 text-center">
+                          <tr>
+                            <td className="p-3 font-sans text-right">{isArabic ? "المجموع الجاري" : "Running Total"}</td>
+                            <td className="p-3 font-sans text-right">({currentItems.length} {isArabic ? "عمليات" : "lines"})</td>
+                            <td className="p-3 font-mono">
+                              <span className={totalCash > 0 ? "text-emerald-400" : totalCash < 0 ? "text-rose-500" : ""}>
+                                {totalCash > 0 ? "+" : ""}{formatCurrency(totalCash, isArabic)}
+                              </span>
+                            </td>
+                            <td className="p-3 font-mono">
+                              <span className={totalActual > 0 ? "text-amber-400" : "text-slate-400"}>
+                                {totalActual > 0 ? "+" : ""}{totalActual.toFixed(2)}g
+                              </span>
+                            </td>
+                            <td className="p-3 font-mono">-</td>
+                            <td className="p-3 font-mono text-amber-500 font-bold">
+                              <span>{totalEquiv > 0 ? "+" : ""}{totalEquiv.toFixed(3)}g</span>
+                            </td>
+                            <td className="p-3 font-mono text-amber-300">
+                              {formatCurrency(totalGoldVal, isArabic)}
+                            </td>
+                            <td className="p-3"></td>
+                          </tr>
+                        </tfoot>
+                      );
+                    })()}
                   </table>
                 </div>
               </div>

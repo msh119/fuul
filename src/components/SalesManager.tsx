@@ -378,6 +378,50 @@ export default function SalesManager({
 
       </div>
 
+      {/* TOTALS SUMMARY GRID */}
+      {(() => {
+        const totalActualWeight = filteredSales.reduce((sum, s) => sum + s.actualWeight, 0);
+        const totalEquivWeight = filteredSales.reduce((sum, s) => sum + s.equivalentWeight21, 0);
+        const totalGoldValue = filteredSales.reduce((sum, s) => sum + s.goldValue, 0);
+
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-slate-900 border border-slate-850 rounded-xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                {isArabic ? "عدد صفقات البيع" : "Sales Transactions Count"}
+              </span>
+              <span className="text-sm font-mono font-black text-rose-400 mt-1">
+                {filteredSales.length}
+              </span>
+            </div>
+            <div className="bg-slate-900 border border-slate-850 rounded-xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                {isArabic ? "إجمالي الوزن الفعلي المبيع" : "Total Sold Raw Weight"}
+              </span>
+              <span className="text-sm font-mono font-black text-white mt-1">
+                {totalActualWeight.toFixed(2)}g
+              </span>
+            </div>
+            <div className="bg-slate-900 border border-slate-850 rounded-xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                {isArabic ? "إجمالي معادل 21" : "Total Sold Equiv 21g"}
+              </span>
+              <span className="text-sm font-mono font-black text-amber-500 mt-1">
+                {totalEquivWeight.toFixed(3)}g
+              </span>
+            </div>
+            <div className="bg-slate-900 border border-slate-850 rounded-xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                {isArabic ? "إجمالي قيمة مبيعات الذهب" : "Total Gold Sold Value"}
+              </span>
+              <span className="text-sm font-mono font-black text-emerald-400 mt-1">
+                {formatCurrency(totalGoldValue, isArabic)}
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* FILTER SEARCH AREA */}
       <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-md space-y-3">
         <div className="relative">
@@ -467,6 +511,26 @@ export default function SalesManager({
                   );
                 })}
               </tbody>
+              {(() => {
+                const totalActualWeight = filteredSales.reduce((sum, s) => sum + s.actualWeight, 0);
+                const totalEquivWeight = filteredSales.reduce((sum, s) => sum + s.equivalentWeight21, 0);
+                const totalGoldValue = filteredSales.reduce((sum, s) => sum + s.goldValue, 0);
+
+                return (
+                  <tfoot className="bg-slate-950 font-bold text-slate-200 border-t border-slate-800">
+                    <tr>
+                      <td className="p-3 font-sans">{isArabic ? "المجموع" : "Total"}</td>
+                      <td className="p-3 font-sans">({filteredSales.length} {isArabic ? "عملية بيع" : "sales"})</td>
+                      <td className="p-3 text-center font-mono">{totalActualWeight.toFixed(2)}g</td>
+                      <td className="p-3 text-center font-mono"></td>
+                      <td className="p-3 text-center font-mono text-amber-500">{totalEquivWeight.toFixed(3)}g</td>
+                      <td className="p-3 text-center font-mono"></td>
+                      <td className="p-3 text-center font-mono text-emerald-400">{formatCurrency(totalGoldValue, isArabic)}</td>
+                      <td className="p-3 text-center"></td>
+                    </tr>
+                  </tfoot>
+                );
+              })()}
             </table>
           )}
         </div>

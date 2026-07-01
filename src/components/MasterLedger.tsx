@@ -27,7 +27,9 @@ import {
   AssayLogItem,
   DealerStatementItem,
   PrivateWalletTransaction,
-  Dealer
+  Dealer,
+  Workshop,
+  WorkshopTransaction
 } from "../types";
 import { formatCurrency, downloadCSV } from "../utils";
 
@@ -39,6 +41,8 @@ interface MasterLedgerProps {
   dealerStatements: DealerStatementItem[];
   walletTransactions: PrivateWalletTransaction[];
   dealers: Dealer[];
+  workshops: Workshop[];
+  workshopTransactions: WorkshopTransaction[];
   isArabic: boolean;
   onDeletePurchase: (id: string) => void;
   onDeleteSale: (id: string) => void;
@@ -46,6 +50,7 @@ interface MasterLedgerProps {
   onDeleteAssayLog: (id: string) => void;
   onDeleteStatementItem: (id: string) => void;
   onDeleteWalletTransaction: (id: string) => void;
+  onDeleteWorkshopTransaction: (id: string) => void;
   onClearLedger: () => void;
   showConfirm: (message: string, onConfirm: () => void) => void;
 }
@@ -54,7 +59,7 @@ export interface UnifiedTransaction {
   id: string; // Composite ID
   realId: string; // The backend list real ID
   date: string;
-  source: "purchase" | "sale" | "expense" | "assay_standalone" | "dealer_statement" | "wallet_manual";
+  source: "purchase" | "sale" | "expense" | "assay_standalone" | "dealer_statement" | "wallet_manual" | "workshop_tx";
   typeAr: string;
   typeEn: string;
   partyAr: string;
@@ -73,6 +78,8 @@ export default function MasterLedger({
   dealerStatements,
   walletTransactions,
   dealers,
+  workshops,
+  workshopTransactions,
   isArabic,
   onDeletePurchase,
   onDeleteSale,
@@ -80,6 +87,7 @@ export default function MasterLedger({
   onDeleteAssayLog,
   onDeleteStatementItem,
   onDeleteWalletTransaction,
+  onDeleteWorkshopTransaction,
   onClearLedger,
   showConfirm,
 }: MasterLedgerProps) {
@@ -217,6 +225,50 @@ export default function MasterLedger({
       }
     });
 
+    // 7. Workshop Transactions
+    workshopTransactions.forEach((wt) => {
+      const parentWorkshop = workshops.find((w) => w.id === wt.workshopId);
+      const wNameAr = parentWorkshop ? parentWorkshop.nameAr : "ورشة";
+      const wNameEn = parentWorkshop ? parentWorkshop.nameEn : "Workshop";
+      
+      let typeAr = "";
+      let typeEn = "";
+      if (wt.type === 'purchase') {
+        typeAr = "شراء ذهب بالورشة";
+        typeEn = "Workshop Gold Purchase";
+      } else if (wt.type === 'sale') {
+        typeAr = "مبيع ذهب بالورشة";
+        typeEn = "Workshop Gold Sale";
+      } else if (wt.type === 'cash_deposit') {
+        typeAr = "إيداع نقدية بالورشة";
+        typeEn = "Workshop Cash Deposit";
+      } else if (wt.type === 'cash_withdrawal') {
+        typeAr = "سحب نقدية من الورشة";
+        typeEn = "Workshop Cash Withdrawal";
+      } else if (wt.type === 'gold_deposit') {
+        typeAr = "إيداع ذهب بالورشة";
+        typeEn = "Workshop Gold Deposit";
+      } else if (wt.type === 'gold_withdrawal') {
+        typeAr = "سحب ذهب من الورشة";
+        typeEn = "Workshop Gold Withdrawal";
+      }
+
+      list.push({
+        id: `workshop_${wt.id}`,
+        realId: wt.id,
+        date: wt.date,
+        source: "workshop_tx",
+        typeAr,
+        typeEn,
+        partyAr: wNameAr,
+        partyEn: wNameEn,
+        descriptionAr: wt.descriptionAr,
+        descriptionEn: wt.descriptionEn,
+        weightInfo: wt.actualWeight !== 0 ? `${wt.actualWeight}g (${wt.detectedKarat}K)` : undefined,
+        cashAmount: wt.cashAmount,
+      });
+    });
+
     return list.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   };
 
@@ -291,6 +343,8 @@ export default function MasterLedger({
         onDeleteStatementItem(item.realId);
       } else if (item.source === "wallet_manual") {
         onDeleteWalletTransaction(item.realId);
+      } else if (item.source === "workshop_tx") {
+        onDeleteWorkshopTransaction(item.realId);
       }
     });
   };
@@ -307,6 +361,7 @@ export default function MasterLedger({
     assays: isArabic ? "الششنة المنفردة" : "Standalone Assays",
     dealerStatement: isArabic ? "تمويل الذمم وسلف التجار" : "Dealer Loans & Transfers",
     walletManual: isArabic ? "تمويل ومسحوبات الخزنة" : "Vault Funds Modifications",
+    workshopsTx: isArabic ? "عمليات الورش" : "Workshop Transactions",
     empty: isArabic ? "لا توجد حركات مطابقة لشروط البحث والتصفية المتطورة." : "No matching transactions correspond to current filters.",
     colDate: isArabic ? "التاريخ" : "Date",
     colType: isArabic ? "نوع الحركة" : "Type",
@@ -423,6 +478,12 @@ export default function MasterLedger({
           >
             {t.walletManual}
           </button>
+          <button
+            onClick={() => setFilterSource("workshop_tx")}
+            className={`px-3 py-1.5 rounded-md transition-all ${filterSource === "workshop_tx" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-950 border border-slate-800 text-slate-400 hover:text-white"}`}
+          >
+            {t.workshopsTx} ({workshopTransactions.length})
+          </button>
         </div>
       </div>
 
@@ -456,6 +517,7 @@ export default function MasterLedger({
                   if (item.source === "assay_standalone") sourceBadgeColor = "bg-cyan-500/10 border border-cyan-500/25 text-cyan-400";
                   if (item.source === "dealer_statement") sourceBadgeColor = "bg-blue-500/10 border border-blue-500/25 text-blue-400";
                   if (item.source === "wallet_manual") sourceBadgeColor = "bg-purple-500/10 border border-purple-500/25 text-purple-400";
+                  if (item.source === "workshop_tx") sourceBadgeColor = "bg-indigo-500/10 border border-indigo-500/25 text-indigo-400";
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-800/30 transition-colors">
