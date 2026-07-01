@@ -50,9 +50,15 @@ export default function ExpensesManager({
 }: ExpensesManagerProps) {
   // Overhead Expenses local form
   const [expenseTitle, setExpenseTitle] = useState("");
-  const [expenseCategory, setExpenseCategory] = useState("نثريات وضيافة");
+  const [expenseCategory, setExpenseCategory] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseNotes, setExpenseNotes] = useState("");
+
+  React.useEffect(() => {
+    const defaultCat = isArabic ? "كهرباء" : "Electricity";
+    setExpenseCategory(defaultCat);
+    setExpenseTitle(defaultCat);
+  }, [isArabic]);
 
   // Standalone Assay Log local form (for simple diagnostic tests paid in cash)
   const [assayClient, setAssayClient] = useState("");
@@ -112,20 +118,46 @@ export default function ExpensesManager({
 
   const presetCategories = isArabic
     ? [
+        "كهرباء",
+        "نت",
+        "ايجار محل",
+        "ايجار شقة",
+        "اكل",
+        "قهوة",
+        "ضيافة عميل",
+        "مصروفات",
+        "مصاريف دمغة وموازين",
+        "تامينات",
+        "ضرايب",
+        "بكشيش",
+        "موصلات",
+        "عمولة بيع",
+        "اجور صيانه",
+        "مصروفات مسبك",
         "محلول أحماض ومواد تيزاب",
         "أجور صهر وبوتقة صب",
-        "فاتورة كهرباء ومياه المعمل",
-        "إيجار وصيانة آلات الصاغة",
-        "نثريات وضيافة العمال",
-        "رسوم ترخيص ودمغة وموازين"
+        "مصروفات اخري"
       ]
     : [
+        "Electricity",
+        "Internet",
+        "Shop Rent",
+        "Apartment Rent",
+        "Food",
+        "Coffee",
+        "Client Hospitality",
+        "Expenses / General",
+        "Stamp & Scales Fees",
+        "Insurances",
+        "Taxes",
+        "Tips",
+        "Transportation",
+        "Sales Commission",
+        "Maintenance Wages",
+        "Foundry / Casting Expenses",
         "Acid testing solutions & chemicals",
         "Melting crucible & gas wages",
-        "Electricity & water utilities",
-        "Gold weights calibration & maintenance",
-        "Overhead operations & tea buffet",
-        "Government trade stamp fees"
+        "Other Expenses"
       ];
 
   const t = {
