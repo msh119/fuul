@@ -116,11 +116,36 @@ export default function MasterLedger({
       });
     });
 
-    // 2. Gold Sales to Dealers
+    // 2. Gold Sales to Dealers (Offset / Clearance)
     sales.forEach((s) => {
       const parentDealer = dealers.find((d) => d.id === s.dealerId);
       const dNameAr = parentDealer ? parentDealer.nameAr : "تاجر";
       const dNameEn = parentDealer ? parentDealer.nameEn : "Dealer";
+
+      const cashReceived = s.cashReceived !== undefined ? s.cashReceived : s.goldValue; // backward compatibility
+      const mode = s.settlementMode || "all_cash";
+
+      let descAr = `تسليم ذهب ${s.detectedKarat}K بوزن ${s.actualWeight} جرام (مكافئ ٢١: ${s.equivalentWeight21.toFixed(3)} جرام) لتسوية الذمم. `;
+      let descEn = `Delivered ${s.detectedKarat}k gold, weight ${s.actualWeight}g. `;
+
+      if (mode === "all_cash") {
+        descAr += `تم استلام كامل قيمة الذهب كاش بالخزينة: ${cashReceived} ج.م`;
+        descEn += `Full value received as treasury cash: ${cashReceived} EGP`;
+      } else if (mode === "all_dealer_balance") {
+        descAr += `أبقى التاجر القيمة كمديونية رصيد بكشف الحساب (بدون كاش)`;
+        descEn += `Left full amount as balance/debt on dealer (no cash flow)`;
+      } else if (mode === "offset_loans_cash") {
+        descAr += `تم مقاصة وتصفية سلفيات التاجر، واستلام الباقي كاش: ${cashReceived} ج.م`;
+        descEn += `Offset previous dealer loans, received remainder as cash: ${cashReceived} EGP`;
+      } else if (mode === "offset_loans_balance") {
+        descAr += `تم تسوية السلفيات، وأبقى الباقي رصيد مديونية عليه بكشف الحساب (بدون كاش)`;
+        descEn += `Offset previous loans, left remainder as dealer debt (no cash flow)`;
+      } else if (mode === "partial_debt") {
+        const debt = s.goldValue - cashReceived;
+        descAr += `تم دفع ${cashReceived} ج.م كاش، والمتبقي بقيمة ${debt} ج.م قيد كمديونية/سلفة على التاجر`;
+        descEn += `Paid ${cashReceived} EGP cash, rest ${debt} EGP added as dealer debt/loan`;
+      }
+
       list.push({
         id: `sale_${s.id}`,
         realId: s.id,
@@ -130,10 +155,10 @@ export default function MasterLedger({
         typeEn: "Dealer Gold Sale (Barter)",
         partyAr: dNameAr,
         partyEn: dNameEn,
-        descriptionAr: `تسليم ذهب ${s.detectedKarat}K بوزن ${s.actualWeight} جرام (مكافئ ٢١: ${s.equivalentWeight21.toFixed(3)} جرام) لتسوية الذمم`,
-        descriptionEn: `Delivered ${s.detectedKarat}k gold, weight ${s.actualWeight}g (21 equiv: ${s.equivalentWeight21.toFixed(3)}g) for barter settlement`,
+        descriptionAr: descAr,
+        descriptionEn: descEn,
         weightInfo: `${s.actualWeight}g (${s.detectedKarat}K)`,
-        cashAmount: 0, // clearing account offset
+        cashAmount: cashReceived, // actual cash received
       });
     });
 

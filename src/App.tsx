@@ -466,27 +466,102 @@ export default function App() {
 
   // 2. ADD SALE (OFFSET / SELL GOLD TO DEALER)
   const handleAddSale = (newSale: SaleItem) => {
-    const updatedSales = [newSale, ...sales];
+    // Determine the settlement mode and values
+    const mode = newSale.settlementMode || "all_cash";
+    const goldValue = newSale.goldValue;
+
+    // Fetch the dealer's statements to calculate outstanding loan before this sale
+    const activeDealerStatements = dealerStatements.filter(
+      (item) => item.id.includes(`_${newSale.dealerId}`) || (newSale.dealerId === "d1" && item.id.startsWith("ds_"))
+    );
+
+    let totalLoansOfSelectedDealer = 0;
+    let totalPaymentsOfSelectedDealer = 0;
+
+    activeDealerStatements.forEach((item) => {
+      if (item.type === "loan_received") {
+        totalLoansOfSelectedDealer += item.cashAmount;
+      } else if (item.type === "loan_paid_cash") {
+        totalPaymentsOfSelectedDealer += Math.abs(item.cashAmount);
+      }
+    });
+
+    const unpaidLoanBeforeSale = totalLoansOfSelectedDealer - totalPaymentsOfSelectedDealer;
+
+    let walletCashInflow = 0;
+    let dealerStatementCashAdjustment = 0;
+
+    if (mode === "all_cash") {
+      walletCashInflow = goldValue;
+      dealerStatementCashAdjustment = 0;
+    } else if (mode === "all_dealer_balance") {
+      walletCashInflow = 0;
+      dealerStatementCashAdjustment = -goldValue; // entire value is debt owed by dealer to us
+    } else if (mode === "offset_loans_cash") {
+      const loanOffset = Math.min(unpaidLoanBeforeSale, goldValue);
+      walletCashInflow = goldValue - loanOffset;
+      dealerStatementCashAdjustment = -loanOffset;
+    } else if (mode === "offset_loans_balance") {
+      walletCashInflow = 0;
+      dealerStatementCashAdjustment = -goldValue; // offsets loan and any excess remains as debt on dealer
+    } else if (mode === "partial_debt") {
+      walletCashInflow = newSale.cashReceived !== undefined ? newSale.cashReceived : 0;
+      dealerStatementCashAdjustment = -(goldValue - walletCashInflow);
+    }
+
+    // Attach actual cash received to the sale item before saving
+    const finalSale: SaleItem = {
+      ...newSale,
+      settlementMode: mode,
+      cashReceived: walletCashInflow,
+    };
+
+    const updatedSales = [finalSale, ...sales];
     setSaleItems(updatedSales);
     saveToLocalStorage("pyramids_sales", updatedSales);
 
     // Dynamic Settle and offset impact to Dealer's Ledger Statement:
-    const dl = dealers.find((d) => d.id === newSale.dealerId);
+    const dl = dealers.find((d) => d.id === finalSale.dealerId);
     const dNameAr = dl ? dl.nameAr : "التاجر";
     const dNameEn = dl ? dl.nameEn : "Dealer";
 
+    let descAr = "";
+    let descEn = "";
+
+    if (mode === "all_cash") {
+      descAr = `بيع ذهب عيار ${finalSale.detectedKarat} بوزن ${finalSale.actualWeight} جم واستلام القيمة كاش بالكامل (${goldValue} ج.م)`;
+      descEn = `Sold gold ${finalSale.detectedKarat}k weight ${finalSale.actualWeight}g, received full cash (${goldValue} EGP)`;
+    } else if (mode === "all_dealer_balance") {
+      descAr = `بيع ذهب عيار ${finalSale.detectedKarat} بوزن ${finalSale.actualWeight} جم وإبقاء كامل القيمة كمديونية/رصيد على التاجر (${goldValue} ج.م)`;
+      descEn = `Sold gold ${finalSale.detectedKarat}k weight ${finalSale.actualWeight}g, left full amount as balance/debt on dealer`;
+    } else if (mode === "offset_loans_cash") {
+      const loanOffset = Math.min(unpaidLoanBeforeSale, goldValue);
+      const excessCash = goldValue - loanOffset;
+      descAr = `بيع ذهب عيار ${finalSale.detectedKarat} بوزن ${finalSale.actualWeight} جم ومقاصة لتسوية سلفيات التاجر بقيمة ${loanOffset} ج.م واستلام المتبقي كاش (${excessCash} ج.م)`;
+      descEn = `Sold gold ${finalSale.detectedKarat}k, offset loan of ${loanOffset} EGP, received remaining ${excessCash} EGP cash`;
+    } else if (mode === "offset_loans_balance") {
+      const loanOffset = Math.min(unpaidLoanBeforeSale, goldValue);
+      const excessBal = goldValue - loanOffset;
+      descAr = `بيع ذهب عيار ${finalSale.detectedKarat} بوزن ${finalSale.actualWeight} جم ومقاصة لتسوية سلفيات التاجر بقيمة ${loanOffset} ج.م وإبقاء الباقي رصيد/مديونية عليه (${excessBal} ج.م)`;
+      descEn = `Sold gold ${finalSale.detectedKarat}k, offset loan of ${loanOffset} EGP, left remaining ${excessBal} EGP as dealer debt`;
+    } else if (mode === "partial_debt") {
+      const remainingDebt = goldValue - walletCashInflow;
+      descAr = `بيع ذهب عيار ${finalSale.detectedKarat} بوزن ${finalSale.actualWeight} جم واستلام ${walletCashInflow} ج.م كاش، والمتبقي بقيمة ${remainingDebt} ج.م يُسجل كمديونية/سلفة على التاجر`;
+      descEn = `Sold gold ${finalSale.detectedKarat}k weight ${finalSale.actualWeight}g, received ${walletCashInflow} EGP cash, remaining ${remainingDebt} EGP recorded as dealer debt/loan`;
+    }
+
     const dealerStatementItem: DealerStatementItem = {
-      id: `ds_sale_${newSale.id}_${newSale.dealerId}`,
-      date: newSale.date,
+      id: `ds_sale_${finalSale.id}_${finalSale.dealerId}`,
+      date: finalSale.date,
       type: "gold_sold_to_dealer",
-      descriptionAr: `مقاصة تسوية ذهب عيار ${newSale.detectedKarat} بوزن ${newSale.actualWeight}g لتسديد السلف`,
-      descriptionEn: `Delivered gold of ${newSale.detectedKarat} karat weight ${newSale.actualWeight}g`,
-      cashAmount: 0,
-      actualWeight: newSale.actualWeight,
-      karatValue: newSale.detectedKarat,
-      equivalentWeight21: newSale.equivalentWeight21,
-      price21: newSale.price21,
-      goldValue: newSale.goldValue
+      descriptionAr: descAr,
+      descriptionEn: descEn,
+      cashAmount: dealerStatementCashAdjustment,
+      actualWeight: finalSale.actualWeight,
+      karatValue: finalSale.detectedKarat,
+      equivalentWeight21: finalSale.equivalentWeight21,
+      price21: finalSale.price21,
+      goldValue: finalSale.goldValue
     };
 
     const updatedStatements = [dealerStatementItem, ...dealerStatements];
@@ -494,17 +569,19 @@ export default function App() {
     saveToLocalStorage("pyramids_dealer_statements", updatedStatements);
 
     // Double-Entry cash flow receipt into Treasury:
-    const saleTx: PrivateWalletTransaction = {
-      id: `w_sale_${newSale.id}`,
-      date: newSale.date,
-      type: "sale_receipt",
-      descriptionAr: `فاتورة بيع ذهب عيار ${newSale.detectedKarat} بوزن ${newSale.actualWeight} جم للتاجر ${dNameAr} بقيمة ${newSale.goldValue} ج.م`,
-      descriptionEn: `Received cash from dealer ${dNameEn} for gold sale (${newSale.detectedKarat} k) weight ${newSale.actualWeight}g`,
-      amount: newSale.goldValue // cash enters private wallet
-    };
-    const updatedWallet = [saleTx, ...walletTransactions];
-    setWalletTransactions(updatedWallet);
-    saveToLocalStorage("pyramids_wallet", updatedWallet);
+    if (walletCashInflow > 0) {
+      const saleTx: PrivateWalletTransaction = {
+        id: `w_sale_${finalSale.id}`,
+        date: finalSale.date,
+        type: "sale_receipt",
+        descriptionAr: `استلام نقدي كاش من مبيع ذهب عيار ${finalSale.detectedKarat} بوزن ${finalSale.actualWeight} جم للتاجر ${dNameAr} بقيمة ${walletCashInflow} ج.م`,
+        descriptionEn: `Received cash from dealer ${dNameEn} for gold sale (${finalSale.detectedKarat} k) weight ${finalSale.actualWeight}g`,
+        amount: walletCashInflow // only actual cash enters private wallet
+      };
+      const updatedWallet = [saleTx, ...walletTransactions];
+      setWalletTransactions(updatedWallet);
+      saveToLocalStorage("pyramids_wallet", updatedWallet);
+    }
   };
 
   const handleDeleteSale = (id: string) => {
@@ -626,6 +703,19 @@ export default function App() {
       const updatedWallet = [walletTx, ...walletTransactions];
       setWalletTransactions(updatedWallet);
       saveToLocalStorage("pyramids_wallet", updatedWallet);
+    } else if (newItem.type === "dealer_debt_settlement") {
+      const walletTx: PrivateWalletTransaction = {
+        id: `w_dealer_settle_${newItem.id}`,
+        date: newItem.date,
+        type: "loan_cash_received",
+        descriptionAr: `استلام نقدي كاش لسداد مديونية مستحقة على التاجر`,
+        descriptionEn: `Received cash payment for outstanding dealer debt`,
+        amount: newItem.cashAmount // positive inflow
+      };
+
+      const updatedWallet = [walletTx, ...walletTransactions];
+      setWalletTransactions(updatedWallet);
+      saveToLocalStorage("pyramids_wallet", updatedWallet);
     } else if (newItem.type === "loan_paid_cash") {
       const walletTx: PrivateWalletTransaction = {
         id: `w_dealer_repay_${newItem.id}`,
@@ -648,7 +738,7 @@ export default function App() {
     saveToLocalStorage("pyramids_dealer_statements", updatedStatements);
 
     const updatedWallet = walletTransactions.filter(
-      (w) => w.id !== `w_dealer_loan_${id}` && w.id !== `w_dealer_repay_${id}`
+      (w) => w.id !== `w_dealer_loan_${id}` && w.id !== `w_dealer_repay_${id}` && w.id !== `w_dealer_settle_${id}`
     );
     setWalletTransactions(updatedWallet);
     saveToLocalStorage("pyramids_wallet", updatedWallet);

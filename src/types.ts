@@ -20,7 +20,7 @@ export interface Dealer {
 export interface DealerStatementItem {
   id: string;
   date: string;
-  type: 'loan_received' | 'loan_paid_cash' | 'gold_sold_to_dealer' | 'gold_received_from_dealer';
+  type: 'loan_received' | 'loan_paid_cash' | 'gold_sold_to_dealer' | 'gold_received_from_dealer' | 'dealer_debt_settlement';
   descriptionAr: string;
   descriptionEn: string;
   cashAmount: number; // Positive for cash we received, Negative for cash we paid back
@@ -53,6 +53,8 @@ export interface SaleItem {
   equivalentWeight21: number;
   price21: number;
   goldValue: number;
+  settlementMode?: 'all_cash' | 'all_dealer_balance' | 'offset_loans_cash' | 'offset_loans_balance';
+  cashReceived?: number; // actual cash that went into the private wallet
 }
 
 export interface PublicExpenseItem {

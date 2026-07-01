@@ -49,7 +49,7 @@ export default function DealersManager({
   const [phone, setPhone] = useState("");
 
   // Statement adjustment form
-  const [adjType, setAdjType] = useState<"loan_received" | "loan_paid_cash" | "gold_sold_to_dealer" | "gold_received_from_dealer">("loan_received");
+  const [adjType, setAdjType] = useState<"loan_received" | "loan_paid_cash" | "gold_sold_to_dealer" | "gold_received_from_dealer" | "dealer_debt_settlement">("loan_received");
   const [adjCash, setAdjCash] = useState("");
   const [adjWeight, setAdjWeight] = useState("");
   const [adjKarat, setAdjKarat] = useState("875"); // Default 21 or 875
@@ -108,16 +108,21 @@ export default function DealersManager({
     if (adjType === "loan_paid_cash") {
       signedCash = -finalCash;
     }
+    if (adjType === "dealer_debt_settlement") {
+      signedCash = finalCash;
+    }
 
     const defaultDescAr = 
       adjType === "loan_received" ? `استلام نقدية / سلفة من التاجر بقيمة ${finalCash} ج.م` :
       adjType === "loan_paid_cash" ? `مديونية مسجلة على التاجر بقيمة ${finalCash} ج.م` :
+      adjType === "dealer_debt_settlement" ? `استلام نقدي كاش لسداد مديونية مستحقة على التاجر بقيمة ${finalCash} ج.م` :
       adjType === "gold_sold_to_dealer" ? `تسليم مبيع ذهب عيار ${finalKarat} بوزن ${finalWeight} جرام` :
       `استلام ذهب عيار ${finalKarat} بوزن ${finalWeight} جرام من التاجر`;
 
     const defaultDescEn = 
       adjType === "loan_received" ? `Received cash loan of ${finalCash} EGP` :
       adjType === "loan_paid_cash" ? `Registered debt/payment to dealer of ${finalCash} EGP` :
+      adjType === "dealer_debt_settlement" ? `Received cash payment for outstanding dealer debt of ${finalCash} EGP` :
       adjType === "gold_sold_to_dealer" ? `Delivered gold of ${finalKarat} karat weight ${finalWeight}g` :
       `Received gold of ${finalKarat} karat weight ${finalWeight}g from dealer`;
 
@@ -213,7 +218,7 @@ export default function DealersManager({
   let totalWeightReceived = 0;  // Cumulative weight 21 we got from dealer
 
   currentItems.forEach((item) => {
-    if (item.type === "loan_received") {
+    if (item.type === "loan_received" || item.type === "dealer_debt_settlement") {
       totalCashLoans += item.cashAmount;
     } else if (item.type === "loan_paid_cash") {
       totalCashPaid += Math.abs(item.cashAmount);
@@ -455,14 +460,15 @@ export default function DealersManager({
                       }}
                       className="w-full bg-slate-800 border border-slate-700 rounded p-1.5 text-white outline-none focus:ring-1 focus:ring-amber-500"
                     >
-                      <option value="loan_received">{isArabic ? "استلام نقدية من التاجر (دين علينا للتاجر) (+)" : "Receive Cash (Owed to Dealer) (+)"}</option>
+                      <option value="loan_received">{isArabic ? "استلام نقدية من التاجر (سلفة/تمويل جاري علينا) (+)" : "Receive Cash / Loan (Owed to Dealer) (+)"}</option>
                       <option value="loan_paid_cash">{isArabic ? "تسليم نقدية للتاجر أو تسجيل مديونية عليه (دين لنا) (-)" : "Deliver Cash / Log Debt on Dealer (-)"}</option>
-                      <option value="gold_sold_to_dealer">{isArabic ? "تسليم ذهب للتاجر (+)" : "Deliver Gold to Dealer (+)"}</option>
+                      <option value="dealer_debt_settlement">{isArabic ? "سداد المديونية الموجودة على التاجر (استلام نقدية كاش) (+)" : "Dealer Repaying/Settle Outstanding Debt (Received Cash) (+)"}</option>
+                      <option value="gold_sold_to_dealer">{isArabic ? "تسليم مبيع ذهب للتاجر (+)" : "Deliver Gold to Dealer (+)"}</option>
                       <option value="gold_received_from_dealer">{isArabic ? "استلام ذهب من التاجر (-)" : "Receive Gold from Dealer (-)"}</option>
                     </select>
                   </div>
 
-                  {(adjType === "loan_received" || adjType === "loan_paid_cash") ? (
+                  {(adjType === "loan_received" || adjType === "loan_paid_cash" || adjType === "dealer_debt_settlement") ? (
                     <div className="md:col-span-2">
                       <label className="block mb-1">{isArabic ? "المبلغ المالي (ج.م) *" : "Cash Amount (EGP) *"}</label>
                       <input

@@ -50,6 +50,8 @@ export default function SalesManager({
   const [weight, setWeight] = useState("");
   const [karatValue, setKaratValue] = useState("852"); // Default mockup state (852 Karat)
   const [price21, setPrice21] = useState("6170"); // Default matchup price (6170 EGP)
+  const [settlementMode, setSettlementMode] = useState<"all_cash" | "partial_debt">("all_cash");
+  const [customCashReceived, setCustomCashReceived] = useState("");
 
   // Sync selectedDealerId if the list of dealers changes or if the current choice is not valid
   React.useEffect(() => {
@@ -167,6 +169,10 @@ export default function SalesManager({
       return;
     }
 
+    const finalCashReceived = settlementMode === "all_cash"
+      ? calculatedGoldValue
+      : Number(customCashReceived || 0);
+
     const newSale: SaleItem = {
       id: "s_" + Date.now(),
       date: new Date().toISOString().split("T")[0],
@@ -176,6 +182,8 @@ export default function SalesManager({
       equivalentWeight21: calculatedEquivWeight21,
       price21: numericPrice21,
       goldValue: calculatedGoldValue,
+      settlementMode,
+      cashReceived: finalCashReceived,
     };
 
     onAddSale(newSale);
@@ -184,6 +192,8 @@ export default function SalesManager({
     setWeight("");
     setKaratValue("852");
     setPrice21("6170");
+    setSettlementMode("all_cash");
+    setCustomCashReceived("");
   };
 
   const filteredSales = sales.filter((s) => {
@@ -292,6 +302,80 @@ export default function SalesManager({
               </div>
             </div>
 
+            {/* SETTLEMENT METHOD SELECTOR */}
+            <div className="bg-slate-950/40 p-4 border border-slate-850 rounded-xl space-y-3.5">
+              <label className="block text-slate-350 font-bold flex items-center gap-1.5 text-xs text-amber-400">
+                <span>{isArabic ? "💡 خيارات التسوية النقدية المتكاملة:" : "💡 Cash Settlement Options:"}</span>
+              </label>
+              <select
+                value={settlementMode}
+                onChange={(e: any) => {
+                  const mode = e.target.value;
+                  setSettlementMode(mode);
+                  if (mode === "all_cash") {
+                    setCustomCashReceived("");
+                  } else {
+                    setCustomCashReceived("0");
+                  }
+                }}
+                className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white outline-none focus:ring-1 focus:ring-rose-500 font-bold"
+              >
+                <option value="all_cash">
+                  {isArabic ? "💵 دفع القيمة بالكامل كاش فوراً (إدخال الخزينة)" : "💵 Pay Full Value in Cash (Enters Treasury)"}
+                </option>
+                <option value="partial_debt">
+                  {isArabic ? "⚖️ باقي مبلغ - يتم إدخال الكاش يدويًا ويضاف الباقي كمديونية/سلفة على التاجر" : "⚖️ Remaining Amount - Enter Cash manually & record rest as Dealer Debt/Loan"}
+                </option>
+              </select>
+
+              {settlementMode === "partial_debt" && (
+                <div className="space-y-1.5 bg-slate-950/50 p-3 rounded-lg border border-slate-800 animate-fade-in">
+                  <label className="block text-[11px] font-bold text-slate-300">
+                    {isArabic ? "💸 الجزء المدفوع كاش يدويًا (ج.م) *:" : "💸 Cash Paid Manually (EGP) *:"}
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-2 text-[9px] text-slate-500 font-bold">EGP</span>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      max={calculatedGoldValue}
+                      value={customCashReceived}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        // Clamp to total gold value to prevent overpayment in partial debt mode
+                        const numVal = Number(val || 0);
+                        if (numVal <= calculatedGoldValue) {
+                          setCustomCashReceived(val);
+                        } else {
+                          setCustomCashReceived(calculatedGoldValue.toString());
+                        }
+                      }}
+                      placeholder="0.00"
+                      className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white font-mono text-left outline-none focus:ring-1 focus:ring-rose-500"
+                    />
+                  </div>
+                  <p className="text-[10px] text-amber-500 font-bold">
+                    {isArabic 
+                      ? `⚠️ القيمة الإجمالية للذهب: ${formatCurrency(calculatedGoldValue, true)} | المتبقي كمديونية/سلفة على التاجر: ${formatCurrency(Math.max(0, calculatedGoldValue - Number(customCashReceived || 0)), true)}`
+                      : `⚠️ Total Gold Value: ${formatCurrency(calculatedGoldValue, false)} | Remaining added as dealer debt: ${formatCurrency(Math.max(0, calculatedGoldValue - Number(customCashReceived || 0)), false)}`}
+                  </p>
+                </div>
+              )}
+
+              <p className="text-[11px] text-slate-450 leading-relaxed font-normal">
+                {settlementMode === 'all_cash' ? (
+                  isArabic 
+                    ? "سيتم ترحيل كامل قيمة الذهب كسيولة نقدية (كاش) داخل الخزينة، ولن تزيد مديونية التاجر."
+                    : "The full gold value will enter your treasury vault, and no debt is logged on the dealer."
+                ) : (
+                  isArabic 
+                    ? "القيمة النقدية المقبوضة تدخل الخزينة، والمتبقي يُقيد فوراً كمديونية/سلفة مستحقة لنا بكشف التاجر."
+                    : "The entered cash amount enters your treasury vault, and the remaining unpaid portion is added as a loan/receivable debt on the dealer."
+                )}
+              </p>
+            </div>
+
             {/* AUTOMATIC LIVE LOAN SETTLEMENT CALCULATIONS */}
             <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 space-y-3">
               <h4 className="text-xs font-bold text-slate-200 flex items-center gap-1.5 pb-2 border-b border-slate-900">
@@ -329,12 +413,34 @@ export default function SalesManager({
                     </div>
                   )}
 
-                  {remainingReimbursementFromDealer > 0 && (
-                    <div className="flex justify-between text-emerald-400 font-black bg-emerald-500/10 p-1 rounded border border-emerald-500/20 mt-1">
-                      <span>{t.remainingDue}</span>
-                      <span className="font-mono">{formatCurrency(remainingReimbursementFromDealer, isArabic)}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    let expectedCashInflow = 0;
+                    let expectedDealerStatementDebtAdjustment = 0;
+
+                    if (settlementMode === "all_cash") {
+                      expectedCashInflow = calculatedGoldValue;
+                      expectedDealerStatementDebtAdjustment = 0;
+                    } else if (settlementMode === "partial_debt") {
+                      expectedCashInflow = Number(customCashReceived || 0);
+                      expectedDealerStatementDebtAdjustment = -(calculatedGoldValue - expectedCashInflow);
+                    }
+
+                    return (
+                      <>
+                        <div className="flex justify-between border-t border-slate-850 pt-1.5 mt-1 text-emerald-400 font-bold bg-emerald-500/5 p-1 rounded border border-emerald-500/10">
+                          <span>{isArabic ? "💸 كاش مستلم (وارد الخزينة):" : "💸 Cash Received (Vault):"}</span>
+                          <span className="font-mono">{formatCurrency(expectedCashInflow, isArabic)}</span>
+                        </div>
+                        <div className="flex justify-between text-amber-400 font-bold bg-amber-500/5 p-1 rounded border border-amber-500/10">
+                          <span>{isArabic ? "📁 حركة كشف التاجر (مديونية):" : "📁 Statement Shift (Debt):"}</span>
+                          <span className="font-mono">
+                            {expectedDealerStatementDebtAdjustment !== 0 ? "" : ""}
+                            {formatCurrency(expectedDealerStatementDebtAdjustment, isArabic)}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -472,14 +578,17 @@ export default function SalesManager({
                   <th className="p-3 text-center">{t.actualWeight}</th>
                   <th className="p-3 text-center">{t.karatValCol}</th>
                   <th className="p-3 text-center">{t.equivWeightCol}</th>
-                  <th className="p-3 text-center">{isArabic ? "السعر المتفق عليه (عيار 21)" : "Price agreed 21"}</th>
                   <th className="p-3 text-center">{t.goldValCol}</th>
+                  <th className="p-3 text-center">{isArabic ? "طريقة التسوية والأثر المالي" : "Settlement & Cash Impact"}</th>
                   <th className="p-3 text-center"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800 text-slate-350">
                 {filteredSales.map((s) => {
                   const dl = dealers.find((d) => d.id === s.dealerId);
+                  const cashReceived = s.cashReceived !== undefined ? s.cashReceived : s.goldValue;
+                  const mode = s.settlementMode || "all_cash";
+
                   return (
                     <tr key={s.id} className="hover:bg-slate-800/30 transition-colors">
                       <td className="p-3 font-mono text-[10px] text-slate-400 whitespace-nowrap">{s.date}</td>
@@ -489,8 +598,25 @@ export default function SalesManager({
                         <div>{s.detectedKarat}</div>
                       </td>
                       <td className="p-3 text-center font-mono text-amber-500 font-bold">{s.equivalentWeight21.toFixed(3)}g</td>
-                      <td className="p-3 text-center font-mono text-slate-400">{formatCurrency(s.price21, isArabic)}</td>
                       <td className="p-3 text-center font-mono text-emerald-400 font-black">{formatCurrency(s.goldValue, isArabic)}</td>
+                      <td className="p-3 text-center whitespace-nowrap">
+                        <div className="flex flex-col items-center justify-center">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            mode === "all_cash" ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" :
+                            mode === "all_dealer_balance" ? "bg-indigo-500/15 text-indigo-450 border border-indigo-500/20" :
+                            mode === "offset_loans_cash" ? "bg-amber-500/15 text-amber-405 border border-amber-500/20" :
+                            "bg-blue-500/15 text-blue-400 border border-blue-500/20"
+                          }`}>
+                            {mode === "all_cash" ? (isArabic ? "💵 كاش بالكامل" : "All Cash") :
+                             mode === "all_dealer_balance" ? (isArabic ? "📁 رصيد بالكامل" : "Dealer Balance") :
+                             mode === "offset_loans_cash" ? (isArabic ? "⚖️ مقاصة + كاش" : "Offset + Cash") :
+                             (isArabic ? "⚖️ مقاصة + رصيد" : "Offset + Balance")}
+                          </span>
+                          <span className="text-[10px] font-mono text-slate-400 mt-1">
+                            {isArabic ? "الكاش المستلم: " : "Cash: "}{formatCurrency(cashReceived, isArabic)}
+                          </span>
+                        </div>
+                      </td>
                       <td className="p-3 text-center">
                         <button
                           onClick={() => {
@@ -515,6 +641,7 @@ export default function SalesManager({
                 const totalActualWeight = filteredSales.reduce((sum, s) => sum + s.actualWeight, 0);
                 const totalEquivWeight = filteredSales.reduce((sum, s) => sum + s.equivalentWeight21, 0);
                 const totalGoldValue = filteredSales.reduce((sum, s) => sum + s.goldValue, 0);
+                const totalCashReceived = filteredSales.reduce((sum, s) => sum + (s.cashReceived !== undefined ? s.cashReceived : s.goldValue), 0);
 
                 return (
                   <tfoot className="bg-slate-950 font-bold text-slate-200 border-t border-slate-800">
@@ -524,8 +651,11 @@ export default function SalesManager({
                       <td className="p-3 text-center font-mono">{totalActualWeight.toFixed(2)}g</td>
                       <td className="p-3 text-center font-mono"></td>
                       <td className="p-3 text-center font-mono text-amber-500">{totalEquivWeight.toFixed(3)}g</td>
-                      <td className="p-3 text-center font-mono"></td>
                       <td className="p-3 text-center font-mono text-emerald-400">{formatCurrency(totalGoldValue, isArabic)}</td>
+                      <td className="p-3 text-center font-mono text-emerald-450">
+                        <div className="text-[10px] text-slate-500 font-sans">{isArabic ? "إجمالي كاش المقبوض:" : "Total Cash Inflow:"}</div>
+                        <div className="text-xs">{formatCurrency(totalCashReceived, isArabic)}</div>
+                      </td>
                       <td className="p-3 text-center"></td>
                     </tr>
                   </tfoot>
